@@ -1,0 +1,64 @@
+package com.example.SPSProjectBackend.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.TimeToLive;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@RedisHash("SecInfoSession")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class SecInfoSessionData {
+    
+    @Id
+    private String sessionId;
+    
+    private String userId;
+    
+    private String userName;
+    
+    private String userCategory;
+    
+    // Add location fields for global session access
+    private String regionCode;
+    
+    private String provinceCode;
+    
+    private String areaCode;
+    
+    private LocalDateTime loginTime;
+    
+    private LocalDateTime lastAccessTime;
+    
+    private String ipAddress;
+    
+    private String userAgent;
+    
+    // TTL in seconds (24 hours = 86400 seconds)
+    @TimeToLive
+    private Long timeToLive = 86400L;
+    
+    // Constructor without TTL (uses default)
+    public SecInfoSessionData(String sessionId, String userId, String userName, 
+                             String userCategory, String regionCode, String provinceCode, 
+                             String areaCode, LocalDateTime loginTime, 
+                             LocalDateTime lastAccessTime, String ipAddress, String userAgent) {
+        this.sessionId = sessionId;
+        this.userId = userId;
+        this.userName = userName;
+        this.userCategory = userCategory;
+        this.regionCode = regionCode;
+        this.provinceCode = provinceCode;
+        this.areaCode = areaCode;
+        this.loginTime = loginTime;
+        this.lastAccessTime = lastAccessTime;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
+        this.timeToLive = 86400L; // 24 hours default
+    }
+}
