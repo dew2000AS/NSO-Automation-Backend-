@@ -18,6 +18,10 @@ public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, 
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userName = :userName")
     Optional<UserAccSecInfo> findByUserName(@Param("userName") String userName);
     
+    // Find by EPF number
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.epfNum = :epfNum")
+    Optional<UserAccSecInfo> findByEpfNum(@Param("epfNum") String epfNum);
+    
     // Find by user category
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userCat = :userCat")
     List<UserAccSecInfo> findByUserCat(@Param("userCat") String userCat);
@@ -53,25 +57,63 @@ public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, 
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userName = :userName")
     boolean existsByUserName(@Param("userName") String userName);
     
-    // Custom query for login validation
-    @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.passwd = :passwd")
+    // Check if user exists by EPF number
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.epfNum = :epfNum")
+    boolean existsByEpfNum(@Param("epfNum") String epfNum);
+    
+    // Custom query for login validation - only for active users
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.passwd = :passwd AND u.status = 1")
     Optional<UserAccSecInfo> findByUserIdAndPasswd(@Param("userId") String userId, @Param("passwd") String passwd);
     
-    // Explicit insert method for debugging
+    // Find all active users
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.status = 1")
+    List<UserAccSecInfo> findAllActiveUsers();
+    
+    // Find all inactive users
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.status = 0")
+    List<UserAccSecInfo> findAllInactiveUsers();
+    
+    // Find users by status
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.status = :status")
+    List<UserAccSecInfo> findByStatus(@Param("status") Integer status);
+    
+    // Update user status (toggle between active/inactive)
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO testdbnew.sec_info (user_id, user_name, passwd, user_cat, region_code, province_code, area_code) VALUES (:userId, :userName, :passwd, :userCat, :regionCode, :provinceCode, :areaCode)", nativeQuery = true)
+    @Query("UPDATE UserAccSecInfo u SET u.status = :status WHERE u.userId = :userId")
+    void updateUserStatus(@Param("userId") String userId, @Param("status") Integer status);
+    
+    // Check if user is active
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
+    boolean isUserActive(@Param("userId") String userId);
+
+    // Enhanced login validation - explicitly for active users only
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
+    Optional<UserAccSecInfo> findActiveUserById(@Param("userId") String userId);
+
+    // Find active user by username
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.userName = :userName AND u.status = 1")
+    Optional<UserAccSecInfo> findActiveUserByUserName(@Param("userName") String userName);
+
+    // Validate login credentials for active users only
+    @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.passwd = :passwd AND u.status = 1")
+    Optional<UserAccSecInfo> validateActiveUserLogin(@Param("userId") String userId, @Param("passwd") String passwd);
+
+    // Check if user exists and is active
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
+    boolean isUserActiveById(@Param("userId") String userId);
+    
+    // Explicit insert method for debugging (updated with status)
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT INTO testdbnew.sec_info (user_id, user_name, passwd, user_cat, region_code, province_code, area_code, epf_num, status) VALUES (:userId, :userName, :passwd, :userCat, :regionCode, :provinceCode, :areaCode, :epfNum, :status)", nativeQuery = true)
     void insertUserManually(@Param("userId") String userId, 
                            @Param("userName") String userName, 
                            @Param("passwd") String passwd, 
                            @Param("userCat") String userCat,
                            @Param("regionCode") String regionCode,
                            @Param("provinceCode") String provinceCode,
-                           @Param("areaCode") String areaCode);
-    
-    // Explicit delete method for debugging
-    @Modifying
-    @Transactional
-    @Query(value = "DELETE FROM testdbnew.sec_info WHERE user_id = :userId", nativeQuery = true)
-    void deleteUserManually(@Param("userId") String userId);
+                           @Param("areaCode") String areaCode,
+                           @Param("epfNum") String epfNum,
+                           @Param("status") Integer status);
 }

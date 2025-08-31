@@ -82,7 +82,7 @@ public class UserAccSecInfoController {
         return null; // No validation errors
     }
 
-    // Get all user accounts
+    // Get all user accounts (including status)
     @GetMapping
     public ResponseEntity<?> getAllUserAccSecInfos() {
         try {
@@ -91,6 +91,34 @@ public class UserAccSecInfoController {
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to retrieve user accounts");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // NEW: Get all active users only
+    @GetMapping("/active")
+    public ResponseEntity<?> getAllActiveUsers() {
+        try {
+            List<UserAccSecInfoDTO> accounts = userAccSecInfoService.getAllActiveUsers();
+            return ResponseEntity.ok(accounts);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve active user accounts");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // NEW: Get all inactive users only
+    @GetMapping("/inactive")
+    public ResponseEntity<?> getAllInactiveUsers() {
+        try {
+            List<UserAccSecInfoDTO> accounts = userAccSecInfoService.getAllInactiveUsers();
+            return ResponseEntity.ok(accounts);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve inactive user accounts");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
@@ -127,7 +155,7 @@ public class UserAccSecInfoController {
         }
     }
 
-    // Create new user account
+    // Create new user account (status automatically set to 1 - active)
     @PostMapping
     public ResponseEntity<?> createUserAccSecInfo(@RequestBody UserAccSecInfoDTO userAccSecInfoDTO) {
         try {
@@ -143,6 +171,14 @@ public class UserAccSecInfoController {
                 Map<String, String> error = new HashMap<>();
                 error.put("error", "Validation failed");
                 error.put("message", "User name is required");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            // EPF number validation (required)
+            if (userAccSecInfoDTO.getEpfNum() == null || userAccSecInfoDTO.getEpfNum().trim().isEmpty()) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Validation failed");
+                error.put("message", "EPF number is required");
                 return ResponseEntity.badRequest().body(error);
             }
 
@@ -171,6 +207,7 @@ public class UserAccSecInfoController {
                 return ResponseEntity.badRequest().body(error);
             }
 
+            // Note: Status is not validated here as it's automatically set to 1 (active) for new users
             UserAccSecInfoDTO createdAccount = userAccSecInfoService.createUserAccSecInfo(userAccSecInfoDTO);
             
             Map<String, Object> response = new HashMap<>();
@@ -191,7 +228,7 @@ public class UserAccSecInfoController {
         }
     }
 
-    // Update user account
+    // Update user account (including status)
     @PutMapping("/{userId}")
     public ResponseEntity<?> updateUserAccSecInfo(@PathVariable String userId, @RequestBody UserAccSecInfoDTO userAccSecInfoDTO) {
         try {
@@ -213,6 +250,16 @@ public class UserAccSecInfoController {
                     Map<String, String> error = new HashMap<>();
                     error.put("error", "Validation failed");
                     error.put("message", locationError);
+                    return ResponseEntity.badRequest().body(error);
+                }
+            }
+
+            // Validate status if provided
+            if (userAccSecInfoDTO.getStatus() != null) {
+                if (userAccSecInfoDTO.getStatus() != 0 && userAccSecInfoDTO.getStatus() != 1) {
+                    Map<String, String> error = new HashMap<>();
+                    error.put("error", "Validation failed");
+                    error.put("message", "Status must be 0 (inactive) or 1 (active)");
                     return ResponseEntity.badRequest().body(error);
                 }
             }
@@ -243,14 +290,16 @@ public class UserAccSecInfoController {
         }
     }
 
-    // Delete user account
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<?> deleteUserAccSecInfo(@PathVariable String userId) {
+    // NEW: Toggle user status (activate/deactivate) - Perfect for frontend toggle button
+    @PutMapping("/{userId}/toggle-status")
+    public ResponseEntity<?> toggleUserStatus(@PathVariable String userId) {
         try {
-            userAccSecInfoService.deleteUserAccSecInfo(userId);
+            UserAccSecInfoDTO updatedAccount = userAccSecInfoService.toggleUserStatus(userId);
             
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "User account deleted successfully");
+            Map<String, Object> response = new HashMap<>();
+            String statusText = updatedAccount.getStatus() == 1 ? "activated" : "deactivated";
+            response.put("message", "User account " + statusText + " successfully");
+            response.put("user", updatedAccount);
             
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -261,16 +310,86 @@ public class UserAccSecInfoController {
                 return ResponseEntity.notFound().build();
             }
             Map<String, String> error = new HashMap<>();
-            error.put("error", "Failed to delete user account");
+            error.put("error", "Failed to toggle user status");
             error.put("message", e.getMessage());
             return ResponseEntity.badRequest().body(error);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Internal server error");
-            error.put("message", "Failed to delete user account: " + e.getMessage());
+            error.put("message", "Failed to toggle user status: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
+    // NEW: Set user status explicitly (activate/deactivate)
+    @PutMapping("/{userId}/status/{status}")
+    public ResponseEntity<?> setUserStatus(@PathVariable String userId, @PathVariable Integer status) {
+        try {
+            if (status != 0 && status != 1) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Validation failed");
+                error.put("message", "Status must be 0 (inactive) or 1 (active)");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            UserAccSecInfoDTO updatedAccount = userAccSecInfoService.setUserStatus(userId, status);
+            
+            Map<String, Object> response = new HashMap<>();
+            String statusText = status == 1 ? "activated" : "deactivated";
+            response.put("message", "User account " + statusText + " successfully");
+            response.put("user", updatedAccount);
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                error.put("message", e.getMessage());
+                return ResponseEntity.notFound().build();
+            }
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to set user status");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            error.put("message", "Failed to set user status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // NEW: Check if user is active
+    @GetMapping("/{userId}/status")
+    public ResponseEntity<?> getUserStatus(@PathVariable String userId) {
+        try {
+            Optional<UserAccSecInfoDTO> account = userAccSecInfoService.getUserAccSecInfoById(userId);
+            if (account.isPresent()) {
+                boolean isActive = userAccSecInfoService.isUserActive(userId);
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("user_id", userId);
+                response.put("is_active", isActive);
+                response.put("status", account.get().getStatus());
+                response.put("status_text", isActive ? "Active" : "Inactive");
+                
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                error.put("message", "User with ID " + userId + " not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to get user status");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // REMOVED: Delete user account endpoint - Users are never deleted from the system
+    // @DeleteMapping("/{userId}") - REMOVED COMPLETELY
 
     // Get users by category
     @GetMapping("/category/{category}")
@@ -328,7 +447,31 @@ public class UserAccSecInfoController {
         }
     }
 
-    // Validate user login
+    // Get user by EPF number
+    @GetMapping("/epf/{epfNum}")
+    public ResponseEntity<?> getUserByEpfNum(@PathVariable String epfNum) {
+        try {
+            Optional<UserAccSecInfoDTO> account = userAccSecInfoService.getUserByEpfNum(epfNum);
+            if (account.isPresent()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "User account retrieved successfully");
+                response.put("user", account.get());
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "User not found");
+                error.put("message", "User with EPF number " + epfNum + " not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve user by EPF number");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Validate user login (updated to only allow active users)
     @PostMapping("/validate")
     public ResponseEntity<?> validateUserLogin(@RequestBody UserLoginRequest loginRequest) {
         try {
@@ -336,7 +479,7 @@ public class UserAccSecInfoController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("valid", isValid);
-            response.put("message", isValid ? "Login successful" : "Invalid credentials");
+            response.put("message", isValid ? "Login successful" : "Invalid credentials or user is inactive");
             
             if (isValid) {
                 return ResponseEntity.ok(response);

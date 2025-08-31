@@ -31,14 +31,23 @@ public class UserAccSecInfoDTO {
     @JsonProperty("area_code")
     private String areaCode;
     
+    @JsonProperty("epf_num")
+    private String epfNum;
+    
+    @JsonProperty("status")
+    private Integer status;
+    
     // Alternative constructor without password (for security)
     public UserAccSecInfoDTO(String userId, String userName, String userCat, 
-                            String regionCode, String provinceCode, String areaCode) {
+                            String regionCode, String provinceCode, String areaCode, 
+                            String epfNum, Integer status) {
         this.userId = userId;
         this.userName = userName;
         this.userCat = userCat;
         this.regionCode = regionCode;
         this.provinceCode = provinceCode;
         this.areaCode = areaCode;
+        this.epfNum = epfNum;
+        this.status = status;
     }
 }

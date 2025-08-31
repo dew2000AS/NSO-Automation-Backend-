@@ -35,7 +35,7 @@ public class SecInfoAuthService {
      */
     @Transactional
     public SecInfoLoginDTO.LoginResponse authenticateUser(SecInfoLoginDTO.LoginRequest loginRequest, 
-                                                         String ipAddress, String userAgent) {
+                                                        String ipAddress, String userAgent) {
         try {
             // Validate input
             if (loginRequest.getUserId() == null || loginRequest.getUserId().trim().isEmpty()) {
@@ -54,6 +54,13 @@ public class SecInfoAuthService {
 
             UserAccSecInfo user = userOptional.get();
 
+            // CRITICAL: Check if user is active BEFORE password validation
+            // This prevents inactive users from logging in even with correct credentials
+            if (user.getStatus() == null || user.getStatus() != 1) {
+                // Use generic message for security (don't reveal account exists but is inactive)
+                return createLoginResponse(false, "Invalid user ID or password", null, null, null, null);
+            }
+
             // Validate password using encryption service
             boolean passwordValid = encryption.validateLogin(
                 loginRequest.getUserId().trim(), 
@@ -62,6 +69,11 @@ public class SecInfoAuthService {
             );
 
             if (!passwordValid) {
+                return createLoginResponse(false, "Invalid user ID or password", null, null, null, null);
+            }
+
+            // Double-check user status again (additional safety)
+            if (user.getStatus() != 1) {
                 return createLoginResponse(false, "Invalid user ID or password", null, null, null, null);
             }
 
@@ -146,6 +158,7 @@ public class SecInfoAuthService {
 
     /**
      * Validate session and update last access time - includes location codes
+     * Added check, to ensure user is still active even after login
      */
     @Transactional
     public SecInfoLoginDTO.SessionValidationResponse validateSession(SecInfoLoginDTO.SessionValidationRequest request) {
@@ -164,6 +177,22 @@ public class SecInfoAuthService {
             // Verify user ID if provided
             if (request.getUserId() != null && !request.getUserId().equals(session.getUserId())) {
                 return new SecInfoLoginDTO.SessionValidationResponse(false, "Session does not belong to this user", null, null, null);
+            }
+
+            // CRITICAL: Check if user is still active in the database
+            // This handles cases where user was deactivated after login
+            Optional<UserAccSecInfo> userOptional = userAccSecInfoRepository.findById(session.getUserId());
+            if (!userOptional.isPresent()) {
+                // User no longer exists - invalidate session
+                secInfoSessionRepository.delete(session);
+                return new SecInfoLoginDTO.SessionValidationResponse(false, "User account no longer exists", null, null, null);
+            }
+
+            UserAccSecInfo user = userOptional.get();
+            if (user.getStatus() == null || user.getStatus() != 1) {
+                // User is no longer active - invalidate session immediately
+                secInfoSessionRepository.delete(session);
+                return new SecInfoLoginDTO.SessionValidationResponse(false, "User account is no longer active", null, null, null);
             }
 
             // Update last access time

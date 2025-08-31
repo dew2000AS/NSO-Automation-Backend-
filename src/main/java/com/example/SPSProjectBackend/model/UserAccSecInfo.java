@@ -33,4 +33,10 @@ public class UserAccSecInfo {
     
     @Column(name = "area_code", length = 2)
     private String areaCode;
+    
+    @Column(name = "epf_num", length = 10, nullable = false)
+    private String epfNum;
+    
+    @Column(name = "status", nullable = false, columnDefinition = "SMALLINT DEFAULT 1")
+    private Integer status = 1; // Default to active (1)
 }

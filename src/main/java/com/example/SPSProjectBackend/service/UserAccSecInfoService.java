@@ -98,7 +98,7 @@ public class UserAccSecInfoService {
         }
     }
 
-    // Get all user accounts
+    // Get all user accounts (including status)
     @Transactional(readOnly = true)
     public List<UserAccSecInfoDTO> getAllUserAccSecInfos() {
         try {
@@ -108,6 +108,32 @@ public class UserAccSecInfoService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve user accounts: " + e.getMessage(), e);
+        }
+    }
+
+    // Get all active users only
+    @Transactional(readOnly = true)
+    public List<UserAccSecInfoDTO> getAllActiveUsers() {
+        try {
+            List<UserAccSecInfo> accounts = userAccSecInfoRepository.findAllActiveUsers();
+            return accounts.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve active user accounts: " + e.getMessage(), e);
+        }
+    }
+
+    // Get all inactive users only
+    @Transactional(readOnly = true)
+    public List<UserAccSecInfoDTO> getAllInactiveUsers() {
+        try {
+            List<UserAccSecInfo> accounts = userAccSecInfoRepository.findAllInactiveUsers();
+            return accounts.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve inactive user accounts: " + e.getMessage(), e);
         }
     }
 
@@ -122,7 +148,7 @@ public class UserAccSecInfoService {
         }
     }
 
-    // Create new user account
+    // Create new user account (status defaults to 1 - active)
     @Transactional
     public UserAccSecInfoDTO createUserAccSecInfo(UserAccSecInfoDTO userAccSecInfoDTO) {
         try {
@@ -137,6 +163,11 @@ public class UserAccSecInfoService {
             
             if (userAccSecInfoDTO.getUserCat() == null || userAccSecInfoDTO.getUserCat().trim().isEmpty()) {
                 throw new RuntimeException("User category is required");
+            }
+
+            // Validate EPF number (required)
+            if (userAccSecInfoDTO.getEpfNum() == null || userAccSecInfoDTO.getEpfNum().trim().isEmpty()) {
+                throw new RuntimeException("EPF number is required");
             }
 
             // Validate password
@@ -155,11 +186,20 @@ public class UserAccSecInfoService {
                 throw new RuntimeException("Username already exists: " + userAccSecInfoDTO.getUserName());
             }
 
+            // Check if EPF number already exists
+            if (userAccSecInfoRepository.existsByEpfNum(userAccSecInfoDTO.getEpfNum())) {
+                throw new RuntimeException("EPF number already exists: " + userAccSecInfoDTO.getEpfNum());
+            }
+
             // Convert DTO to Entity
             UserAccSecInfo userAccSecInfo = new UserAccSecInfo();
             userAccSecInfo.setUserId(userAccSecInfoDTO.getUserId());
             userAccSecInfo.setUserName(userAccSecInfoDTO.getUserName());
             userAccSecInfo.setUserCat(userAccSecInfoDTO.getUserCat());
+            userAccSecInfo.setEpfNum(userAccSecInfoDTO.getEpfNum());
+            
+            // Set status to active (1) for new users - user doesn't need to pass status
+            userAccSecInfo.setStatus(1);
             
             // Set location codes based on user category
             setLocationCodesOnEntity(userAccSecInfo, userAccSecInfoDTO);
@@ -221,6 +261,15 @@ public class UserAccSecInfoService {
                 existingAccount.setUserName(userAccSecInfoDTO.getUserName());
             }
 
+            if (userAccSecInfoDTO.getEpfNum() != null && !userAccSecInfoDTO.getEpfNum().isEmpty()) {
+                // Check if new EPF number already exists (excluding current user)
+                Optional<UserAccSecInfo> userWithSameEpf = userAccSecInfoRepository.findByEpfNum(userAccSecInfoDTO.getEpfNum());
+                if (userWithSameEpf.isPresent() && !userWithSameEpf.get().getUserId().equals(userId)) {
+                    throw new RuntimeException("EPF number already exists: " + userAccSecInfoDTO.getEpfNum());
+                }
+                existingAccount.setEpfNum(userAccSecInfoDTO.getEpfNum());
+            }
+
             if (userAccSecInfoDTO.getPasswd() != null && !userAccSecInfoDTO.getPasswd().isEmpty()) {
                 // Validate password before updating
                 validatePassword(userAccSecInfoDTO.getPasswd());
@@ -238,6 +287,15 @@ public class UserAccSecInfoService {
                 setLocationCodesOnEntity(existingAccount, userAccSecInfoDTO);
             }
 
+            // Update status if provided
+            if (userAccSecInfoDTO.getStatus() != null) {
+                if (userAccSecInfoDTO.getStatus() == 0 || userAccSecInfoDTO.getStatus() == 1) {
+                    existingAccount.setStatus(userAccSecInfoDTO.getStatus());
+                } else {
+                    throw new RuntimeException("Status must be 0 (inactive) or 1 (active)");
+                }
+            }
+
             UserAccSecInfo updatedAccount = userAccSecInfoRepository.save(existingAccount);
             
             // Force flush to ensure data is saved
@@ -251,21 +309,64 @@ public class UserAccSecInfoService {
         }
     }
 
-    // Delete user account
+    // NEW METHOD: Toggle user status (activate/deactivate)
     @Transactional
-    public void deleteUserAccSecInfo(String userId) {
+    public UserAccSecInfoDTO toggleUserStatus(String userId) {
         try {
-            if (!userAccSecInfoRepository.existsByUserId(userId)) {
-                throw new RuntimeException("User account not found with ID: " + userId);
-            }
-            userAccSecInfoRepository.deleteById(userId);
+            UserAccSecInfo existingAccount = userAccSecInfoRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User account not found with ID: " + userId));
+
+            // Toggle status: 1 -> 0, 0 -> 1
+            Integer newStatus = existingAccount.getStatus() == 1 ? 0 : 1;
+            existingAccount.setStatus(newStatus);
+
+            UserAccSecInfo updatedAccount = userAccSecInfoRepository.save(existingAccount);
             userAccSecInfoRepository.flush();
+            
+            return convertToDTO(updatedAccount);
         } catch (RuntimeException e) {
-            throw e; // Re-throw runtime exceptions as-is
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to delete user account: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to toggle user status: " + e.getMessage(), e);
         }
     }
+
+    // NEW METHOD: Set user status explicitly
+    @Transactional
+    public UserAccSecInfoDTO setUserStatus(String userId, Integer status) {
+        try {
+            if (status != 0 && status != 1) {
+                throw new RuntimeException("Status must be 0 (inactive) or 1 (active)");
+            }
+
+            UserAccSecInfo existingAccount = userAccSecInfoRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User account not found with ID: " + userId));
+
+            existingAccount.setStatus(status);
+
+            UserAccSecInfo updatedAccount = userAccSecInfoRepository.save(existingAccount);
+            userAccSecInfoRepository.flush();
+            
+            return convertToDTO(updatedAccount);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set user status: " + e.getMessage(), e);
+        }
+    }
+
+    // Check if user is active
+    @Transactional(readOnly = true)
+    public boolean isUserActive(String userId) {
+        try {
+            return userAccSecInfoRepository.isUserActive(userId);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to check user status: " + e.getMessage(), e);
+        }
+    }
+
+    // REMOVE DELETE METHOD - Users are never deleted
+    // public void deleteUserAccSecInfo(String userId) - REMOVED
 
     // Get users by category
     @Transactional(readOnly = true)
@@ -319,28 +420,70 @@ public class UserAccSecInfoService {
         }
     }
 
-    // Validate user login - This method now properly handles encrypted passwords
+    // Get user by EPF number
     @Transactional(readOnly = true)
-    public boolean validateUserLogin(String userId, String password) {
+    public Optional<UserAccSecInfoDTO> getUserByEpfNum(String epfNum) {
         try {
-            Optional<UserAccSecInfo> user = userAccSecInfoRepository.findById(userId);
-            if (user.isPresent()) {
-                try {
-                    // Use the encryption service to validate login
-                    // The stored password in DB is already encrypted, so we use validateLogin method
-                    return encryption.validateLogin(userId, password, user.get().getPasswd());
-                } catch (Exception e) {
-                    System.err.println("Encryption validation failed: " + e.getMessage());
-                    return false;
-                }
-            }
-            return false;
+            Optional<UserAccSecInfo> account = userAccSecInfoRepository.findByEpfNum(epfNum);
+            return account.map(this::convertToDTO);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to validate user login: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve user by EPF number: " + e.getMessage(), e);
         }
     }
 
-    // Helper method to convert Entity to DTO
+    // Validate user login - Updated to only allow active users with better error handling
+    @Transactional(readOnly = true)
+    public boolean validateUserLogin(String userId, String password) {
+        try {
+            if (userId == null || userId.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+                return false;
+            }
+
+            // Use the new repository method to find only active users
+            Optional<UserAccSecInfo> user = userAccSecInfoRepository.findActiveUserById(userId.trim());
+            if (!user.isPresent()) {
+                // User doesn't exist OR user exists but is inactive
+                // We return false for both cases (security through obscurity)
+                return false;
+            }
+
+            UserAccSecInfo activeUser = user.get();
+            
+            // Double-check status (defensive programming)
+            if (activeUser.getStatus() == null || activeUser.getStatus() != 1) {
+                return false;
+            }
+
+            try {
+                // Use the encryption service to validate login
+                // The stored password in DB is already encrypted, so we use validateLogin method
+                return encryption.validateLogin(userId.trim(), password, activeUser.getPasswd());
+            } catch (Exception e) {
+                System.err.println("Encryption validation failed for user " + userId + ": " + e.getMessage());
+                return false;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Login validation failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // NEW METHOD: Check if user can login (separate from password validation)
+    @Transactional(readOnly = true)
+    public boolean canUserLogin(String userId) {
+        try {
+            if (userId == null || userId.trim().isEmpty()) {
+                return false;
+            }
+            return userAccSecInfoRepository.isUserActiveById(userId.trim());
+        } catch (Exception e) {
+            System.err.println("Failed to check if user can login: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // Helper method to convert Entity to DTO (updated to include status)
     private UserAccSecInfoDTO convertToDTO(UserAccSecInfo userAccSecInfo) {
         try {
             if (userAccSecInfo == null) {
@@ -356,6 +499,10 @@ public class UserAccSecInfoService {
             dto.setRegionCode(userAccSecInfo.getRegionCode());
             dto.setProvinceCode(userAccSecInfo.getProvinceCode());
             dto.setAreaCode(userAccSecInfo.getAreaCode());
+            // Include EPF number in DTO
+            dto.setEpfNum(userAccSecInfo.getEpfNum());
+            // Include status in DTO
+            dto.setStatus(userAccSecInfo.getStatus());
             return dto;
         } catch (Exception e) {
             throw new RuntimeException("Failed to convert entity to DTO: " + e.getMessage(), e);
