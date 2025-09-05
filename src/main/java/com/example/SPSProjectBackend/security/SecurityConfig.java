@@ -3,6 +3,7 @@ package com.example.SPSProjectBackend.security;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -33,6 +34,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
+                        // Allow OPTIONS requests for all endpoints
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // Existing endpoints
                         .requestMatchers("/api/v1/**").permitAll()
                         .requestMatchers("/api/v1/verify/**").permitAll()
