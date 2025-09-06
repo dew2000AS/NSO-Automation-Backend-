@@ -13,12 +13,12 @@
 //}
 
 
-package com.example.SPSProjectBackend;
+// package com.example.SPSProjectBackend;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+// import org.springframework.boot.SpringApplication;
+// import org.springframework.boot.autoconfigure.SpringBootApplication;
+// import org.springframework.boot.builder.SpringApplicationBuilder;
+// import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 
 //@SpringBootApplication
 //public class EvProjectApplication {
@@ -30,14 +30,24 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 //
 //}
 
-@SpringBootApplication
-public class SpsProjectBackendApplication extends SpringBootServletInitializer {
-	@Override
-	protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
-		return builder.sources(SpsProjectBackendApplication.class);
-	}
+package com.example.SPSProjectBackend;
 
-	public static void main(String[] args) {
-		SpringApplication.run(SpsProjectBackendApplication.class, args);
-	}
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.context.annotation.ComponentScan;
+
+@SpringBootApplication
+@ComponentScan(basePackages = {"com.example.SPSProjectBackend", "util"})
+public class SpsProjectBackendApplication extends SpringBootServletInitializer {
+    
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
+        return builder.sources(SpsProjectBackendApplication.class);
+    }
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpsProjectBackendApplication.class, args);
+    }
 }

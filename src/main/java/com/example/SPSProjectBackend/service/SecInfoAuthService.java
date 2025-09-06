@@ -1,5 +1,6 @@
 package com.example.SPSProjectBackend.service;
 
+import com.example.SPSProjectBackend.dto.BillCycleDTO;
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import com.example.SPSProjectBackend.model.SecInfoSessionData;
 import com.example.SPSProjectBackend.model.UserAccSecInfo;
@@ -9,10 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import util.common.Encryption;
+import com.example.SPSProjectBackend.service.BillCycleService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @Transactional
@@ -26,6 +30,9 @@ public class SecInfoAuthService {
 
     @Autowired
     private Encryption encryption;
+
+    @Autowired
+    private BillCycleService billCycleService;
 
     // Session timeout in hours (24 hours)
     private static final int DEFAULT_SESSION_TIMEOUT_HOURS = 24;
@@ -333,6 +340,46 @@ public class SecInfoAuthService {
             return Optional.empty();
         } catch (Exception e) {
             return Optional.empty();
+        }
+    }
+
+    /**
+    * Get bill cycles for user during login
+    */
+    private List<BillCycleDTO.AreaBillCycleDTO> getUserBillCyclesForLogin(UserAccSecInfo user) {
+    try {
+        String userCategory = user.getUserCat();
+        List<BillCycleDTO.AreaBillCycleDTO> billCycles = new ArrayList<>();
+        
+        switch (userCategory) {
+            case "Admin":
+                // Admin sees all areas
+                billCycles = billCycleService.getAllAreasBillCycles();
+                break;
+            case "Region User":
+                // Region user sees all areas in their region
+                if (user.getRegionCode() != null) {
+                    billCycles = billCycleService.getRegionBillCycles(user.getRegionCode());
+                }
+                break;
+            case "Province User":
+                // Province user sees all areas in their province
+                if (user.getProvinceCode() != null) {
+                    billCycles = billCycleService.getProvinceBillCycles(user.getProvinceCode());
+                }
+                break;
+            case "Area User":
+                // Area user sees only their area
+                if (user.getAreaCode() != null) {
+                    billCycles = billCycleService.getAreaBillCycles(user.getAreaCode());
+                }
+                break;
+        }
+        
+            return billCycles;
+        } catch (Exception e) {
+            // Return empty list on error
+            return new ArrayList<>();
         }
     }
 

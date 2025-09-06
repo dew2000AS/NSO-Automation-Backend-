@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.TimeToLive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.Map;
 
 import java.time.LocalDateTime;
 
@@ -38,6 +39,9 @@ public class SecInfoSessionData {
     private String ipAddress;
     
     private String userAgent;
+
+    // Add to store active bill cycles in session
+    private Map<String, Integer> activeBillCycles;
     
     // TTL in seconds (24 hours = 86400 seconds)
     @TimeToLive
@@ -60,5 +64,14 @@ public class SecInfoSessionData {
         this.ipAddress = ipAddress;
         this.userAgent = userAgent;
         this.timeToLive = 86400L; // 24 hours default
+    }
+
+    // Add getter and setter for active bill cycles
+    public Map<String, Integer> getActiveBillCycles() {
+        return activeBillCycles;
+    }
+
+    public void setActiveBillCycles(Map<String, Integer> activeBillCycles) {
+        this.activeBillCycles = activeBillCycles;
     }
 }

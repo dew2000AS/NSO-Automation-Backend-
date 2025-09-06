@@ -1,5 +1,6 @@
 package com.example.SPSProjectBackend.controller;
 
+import com.example.SPSProjectBackend.dto.BillCycleDTO;
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import com.example.SPSProjectBackend.service.SecInfoAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,8 +9,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.SPSProjectBackend.service.BillCycleService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,12 +25,16 @@ public class SecInfoAuthController {
     @Autowired
     private SecInfoAuthService secInfoAuthService;
 
+    @Autowired
+    private BillCycleService billCycleService;
+
     /**
      * User Login Endpoint - Updated to include location codes based on user category
+     * Update the login method to include bill cycles
      */
     @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> login(@RequestBody SecInfoLoginDTO.LoginRequest loginRequest, 
-                                  HttpServletRequest request) {
+                                HttpServletRequest request) {
         Map<String, Object> responseMap = new HashMap<>();
         
         try {
@@ -84,6 +92,33 @@ public class SecInfoAuthController {
                     }
                     
                     responseMap.put("user_info", userInfo);
+                    
+                    // Get bill cycles for the user
+                    try {
+                        BillCycleDTO.BillCycleResponse billCycleResponse = billCycleService.getBillCyclesForUser(
+                            response.getSessionId(), response.getUserInfo().getUserId());
+                        
+                        if (billCycleResponse.getSuccess()) {
+                            responseMap.put("bill_cycles", billCycleResponse.getBillCycles());
+                            
+                            // Add summary
+                            int totalAreas = billCycleResponse.getBillCycles().size();
+                            long areasWithCycles = billCycleResponse.getBillCycles().stream()
+                                    .filter(BillCycleDTO.AreaBillCycleDTO::getHasBillCycle)
+                                    .count();
+                            
+                            Map<String, Object> billCycleSummary = new HashMap<>();
+                            billCycleSummary.put("total_areas", totalAreas);
+                            billCycleSummary.put("areas_with_cycles", areasWithCycles);
+                            billCycleSummary.put("areas_without_cycles", totalAreas - areasWithCycles);
+                            
+                            responseMap.put("bill_cycle_summary", billCycleSummary);
+                        }
+                    } catch (Exception e) {
+                        // Log error but don't fail login
+                        System.err.println("Failed to get bill cycles during login: " + e.getMessage());
+                        responseMap.put("bill_cycles", new ArrayList<>());
+                    }
                 }
                 
                 responseMap.put("login_time", response.getLoginTime() != null ? response.getLoginTime().toString() : null);

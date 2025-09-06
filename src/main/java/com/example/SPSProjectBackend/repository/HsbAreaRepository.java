@@ -62,4 +62,8 @@ public interface HsbAreaRepository extends JpaRepository<HsbArea, String> {
            "WHERE a.provCode = :provCode " +
            "ORDER BY a.areaCode ASC")
     List<Object[]> findAreasWithProvinceNamesByProvince(@Param("provCode") String provCode);
+
+       // Find areas by a list of area codes
+       @Query("SELECT a FROM HsbArea a WHERE a.areaCode IN :areaCodes ORDER BY a.areaCode ASC")
+       List<HsbArea> findByAreaCodeIn(@Param("areaCodes") List<String> areaCodes);
 }

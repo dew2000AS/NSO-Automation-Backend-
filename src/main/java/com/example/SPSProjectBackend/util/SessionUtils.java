@@ -1,9 +1,10 @@
-package util;
+package com.example.SPSProjectBackend.util;
 
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import com.example.SPSProjectBackend.model.SecInfoSessionData;
 import com.example.SPSProjectBackend.service.SecInfoAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -15,6 +16,7 @@ import java.util.Optional;
 public class SessionUtils {
 
     @Autowired
+    @Lazy
     private SecInfoAuthService secInfoAuthService;
 
     /**
