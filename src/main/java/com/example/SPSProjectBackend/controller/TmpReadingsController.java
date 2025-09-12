@@ -1,12 +1,18 @@
+// Modified: com/example/SPSProjectBackend/controller/TmpReadingsController.java
 package com.example.SPSProjectBackend.controller;
 
 import com.example.SPSProjectBackend.dto.TmpReadingsDTO;
 import com.example.SPSProjectBackend.service.TmpReadingsService;
+import com.example.SPSProjectBackend.service.SecInfoAuthService;
+import com.example.SPSProjectBackend.service.HsbLocationService;
+import com.example.SPSProjectBackend.util.SessionUtils;
+import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -22,7 +28,16 @@ public class TmpReadingsController {
     @Autowired
     private TmpReadingsService tmpReadingsService;
 
-    // Get all readings
+    @Autowired
+    private SecInfoAuthService secInfoAuthService;
+
+    @Autowired
+    private HsbLocationService locationService;
+
+    @Autowired
+    private SessionUtils sessionUtils;
+
+    // Get all readings - DEPRECATED, use filtered endpoints
     @GetMapping
     public ResponseEntity<?> getAllReadings() {
         try {
@@ -36,10 +51,13 @@ public class TmpReadingsController {
         }
     }
 
-    // Get readings by account number
+    // FIXED: Get readings by account number - Add session validation
     @GetMapping("/account/{accNbr}")
-    public ResponseEntity<?> getReadingsByAccNbr(@PathVariable String accNbr) {
+    public ResponseEntity<?> getReadingsByAccNbr(@PathVariable String accNbr,
+                                                 @RequestParam(required = false) String session_id,
+                                                 @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null); // No area-specific check for account
             List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAccNbr(accNbr);
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
@@ -58,8 +76,11 @@ public class TmpReadingsController {
     @GetMapping("/account/{accNbr}/date/{rdngDate}")
     public ResponseEntity<?> getReadingsByAccNbrAndDate(
             @PathVariable String accNbr,
-            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date rdngDate) {
+            @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date rdngDate,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAccNbrAndDate(accNbr, rdngDate);
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
@@ -77,8 +98,11 @@ public class TmpReadingsController {
 
     // Get latest readings for account
     @GetMapping("/account/{accNbr}/latest")
-    public ResponseEntity<?> getLatestReadingsByAccNbr(@PathVariable String accNbr) {
+    public ResponseEntity<?> getLatestReadingsByAccNbr(@PathVariable String accNbr,
+                                                       @RequestParam(required = false) String session_id,
+                                                       @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<TmpReadingsDTO> readings = tmpReadingsService.getLatestReadingsByAccNbr(accNbr);
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
@@ -93,10 +117,13 @@ public class TmpReadingsController {
         }
     }
 
-    // Get readings by area code
+    // FIXED: Get readings by area code - Add session validation and access check
     @GetMapping("/area/{areaCd}")
-    public ResponseEntity<?> getReadingsByAreaCd(@PathVariable String areaCd) {
+    public ResponseEntity<?> getReadingsByAreaCd(@PathVariable String areaCd,
+                                                 @RequestParam(required = false) String session_id,
+                                                 @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAreaCd(areaCd);
             Map<String, Object> response = new HashMap<>();
             response.put("area_code", areaCd);
@@ -158,8 +185,11 @@ public class TmpReadingsController {
             @RequestParam String addedBlcy,
             @RequestParam Integer mtrSeq,
             @RequestParam String mtrType,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date rdngDate) {
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date rdngDate,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             Optional<TmpReadingsDTO> reading = tmpReadingsService.getSpecificReading(
                 accNbr, areaCd, addedBlcy, mtrSeq, mtrType, rdngDate);
             
@@ -284,6 +314,33 @@ public class TmpReadingsController {
             error.put("error", "Failed to retrieve distinct meter types");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // FIXED: Helper method to validate session and access
+    private void validateSessionAndAccess(String sessionId, String userId, String targetRegionCode, String targetProvinceCode, String targetAreaCode) {
+        if (sessionId != null && userId != null) {
+            // Validate session
+            SecInfoLoginDTO.SessionValidationRequest validationRequest = new SecInfoLoginDTO.SessionValidationRequest();
+            validationRequest.setSessionId(sessionId);
+            validationRequest.setUserId(userId);
+            SecInfoLoginDTO.SessionValidationResponse validationResponse = secInfoAuthService.validateSession(validationRequest);
+            if (!validationResponse.getValid()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired session");
+            }
+
+            // If area-specific, validate access
+            if (targetAreaCode != null) {
+                Optional<com.example.SPSProjectBackend.dto.HsbAreaDTO> areaOpt = locationService.getAreaByCode(targetAreaCode);
+                if (areaOpt.isEmpty()) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Area not found");
+                }
+                com.example.SPSProjectBackend.dto.HsbAreaDTO area = areaOpt.get();
+                boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, area.getRegion(), area.getProvCode(), targetAreaCode);
+                if (!hasAccess) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this area");
+                }
+            }
         }
     }
 }
