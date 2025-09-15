@@ -1,0 +1,472 @@
+package com.example.SPSProjectBackend.controller;
+
+import com.example.SPSProjectBackend.dto.BulkCustomerDTO;
+import com.example.SPSProjectBackend.service.BulkCustomerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/v1/bulk-customers")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+public class BulkCustomerController {
+
+    @Autowired
+    private BulkCustomerService bulkCustomerService;
+
+    // Get all customers
+    @GetMapping
+    public ResponseEntity<?> getAllCustomers() {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getAllCustomers();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customer by account number
+    @GetMapping("/account/{accNbr}")
+    public ResponseEntity<?> getCustomerByAccNbr(@PathVariable String accNbr) {
+        try {
+            Optional<BulkCustomerDTO> customer = bulkCustomerService.getCustomerByAccNbr(accNbr);
+            
+            if (customer.isPresent()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Customer found");
+                response.put("customer", customer.get());
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Customer not found");
+                error.put("message", "No customer found with account number: " + accNbr);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customer");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by area code
+    @GetMapping("/area/{areaCd}")
+    public ResponseEntity<?> getCustomersByAreaCd(@PathVariable String areaCd) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByAreaCd(areaCd);
+            Map<String, Object> response = new HashMap<>();
+            response.put("area_code", areaCd);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by area code");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by zone
+    @GetMapping("/zone/{zone}")
+    public ResponseEntity<?> getCustomersByZone(@PathVariable String zone) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByZone(zone);
+            Map<String, Object> response = new HashMap<>();
+            response.put("zone", zone);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by zone");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by zone and area
+    @GetMapping("/zone/{zone}/area/{areaCd}")
+    public ResponseEntity<?> getCustomersByZoneAndArea(@PathVariable String zone, @PathVariable String areaCd) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByZoneAndArea(zone, areaCd);
+            Map<String, Object> response = new HashMap<>();
+            response.put("zone", zone);
+            response.put("area_code", areaCd);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by zone and area");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Search customers by name
+    @GetMapping("/search/name")
+    public ResponseEntity<?> searchCustomersByName(@RequestParam String name) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomersByName(name);
+            Map<String, Object> response = new HashMap<>();
+            response.put("search_term", name);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to search customers by name");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by tariff
+    @GetMapping("/tariff/{tariff}")
+    public ResponseEntity<?> getCustomersByTariff(@PathVariable String tariff) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByTariff(tariff);
+            Map<String, Object> response = new HashMap<>();
+            response.put("tariff", tariff);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by tariff");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by operational status
+    @GetMapping("/status/{opStat}")
+    public ResponseEntity<?> getCustomersByOpStat(@PathVariable String opStat) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByOpStat(opStat);
+            Map<String, Object> response = new HashMap<>();
+            response.put("operational_status", opStat);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by operational status");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customer by mobile number
+    @GetMapping("/mobile/{mobileNo}")
+    public ResponseEntity<?> getCustomerByMobileNo(@PathVariable String mobileNo) {
+        try {
+            Optional<BulkCustomerDTO> customer = bulkCustomerService.getCustomerByMobileNo(mobileNo);
+            
+            if (customer.isPresent()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("message", "Customer found");
+                response.put("mobile_number", mobileNo);
+                response.put("customer", customer.get());
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Customer not found");
+                error.put("message", "No customer found with mobile number: " + mobileNo);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customer by mobile number");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by city
+    @GetMapping("/city/{city}")
+    public ResponseEntity<?> getCustomersByCity(@PathVariable String city) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByCity(city);
+            Map<String, Object> response = new HashMap<>();
+            response.put("city", city);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by city");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get customers by bill cycle
+    @GetMapping("/bill-cycle/{billCycle}")
+    public ResponseEntity<?> getCustomersByBillCycle(@PathVariable Integer billCycle) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByBillCycle(billCycle);
+            Map<String, Object> response = new HashMap<>();
+            response.put("bill_cycle", billCycle);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve customers by bill cycle");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Search customers by multiple criteria
+    @GetMapping("/search/advanced")
+    public ResponseEntity<?> searchCustomersByMultipleCriteria(
+            @RequestParam(required = false) String areaCd,
+            @RequestParam(required = false) String zone,
+            @RequestParam(required = false) String tariff,
+            @RequestParam(required = false) String opStat,
+            @RequestParam(required = false) String cusCat) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomersByMultipleCriteria(areaCd, zone, tariff, opStat, cusCat);
+            Map<String, Object> response = new HashMap<>();
+            Map<String, Object> searchCriteria = new HashMap<>();
+            searchCriteria.put("area_code", areaCd);
+            searchCriteria.put("zone", zone);
+            searchCriteria.put("tariff", tariff);
+            searchCriteria.put("operational_status", opStat);
+            searchCriteria.put("customer_category", cusCat);
+            response.put("search_criteria", searchCriteria);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to search customers by multiple criteria");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // General search customers
+    @GetMapping("/search")
+    public ResponseEntity<?> searchCustomers(@RequestParam String searchTerm) {
+        try {
+            List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomers(searchTerm);
+            Map<String, Object> response = new HashMap<>();
+            response.put("search_term", searchTerm);
+            response.put("total_customers", customers.size());
+            response.put("customers", customers);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to search customers");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Create new customer
+    @PostMapping
+    public ResponseEntity<?> createCustomer(@RequestBody BulkCustomerDTO customerDTO) {
+        try {
+            BulkCustomerDTO createdCustomer = bulkCustomerService.createCustomer(customerDTO);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Customer created successfully");
+            response.put("customer", createdCustomer);
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to create customer");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            error.put("message", "Failed to create customer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Update existing customer
+    @PutMapping("/{accNbr}")
+    public ResponseEntity<?> updateCustomer(@PathVariable String accNbr, @RequestBody BulkCustomerDTO customerDTO) {
+        try {
+            BulkCustomerDTO updatedCustomer = bulkCustomerService.updateCustomer(accNbr, customerDTO);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Customer updated successfully");
+            response.put("customer", updatedCustomer);
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                Map<String, String> error = new HashMap<>();
+                error.put("error", "Customer not found");
+                error.put("message", e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to update customer");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            error.put("message", "Failed to update customer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get distinct area codes
+    @GetMapping("/distinct/area-codes")
+    public ResponseEntity<?> getDistinctAreaCodes() {
+        try {
+            List<String> areaCodes = bulkCustomerService.getDistinctAreaCodes();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_area_codes", areaCodes.size());
+            response.put("area_codes", areaCodes);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve distinct area codes");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get distinct zones
+    @GetMapping("/distinct/zones")
+    public ResponseEntity<?> getDistinctZones() {
+        try {
+            List<String> zones = bulkCustomerService.getDistinctZones();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_zones", zones.size());
+            response.put("zones", zones);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve distinct zones");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get distinct tariffs
+    @GetMapping("/distinct/tariffs")
+    public ResponseEntity<?> getDistinctTariffs() {
+        try {
+            List<String> tariffs = bulkCustomerService.getDistinctTariffs();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_tariffs", tariffs.size());
+            response.put("tariffs", tariffs);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve distinct tariffs");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get distinct customer categories
+    @GetMapping("/distinct/categories")
+    public ResponseEntity<?> getDistinctCusCategories() {
+        try {
+            List<String> categories = bulkCustomerService.getDistinctCusCategories();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_categories", categories.size());
+            response.put("categories", categories);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve distinct customer categories");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Get distinct cities
+    @GetMapping("/distinct/cities")
+    public ResponseEntity<?> getDistinctCities() {
+        try {
+            List<String> cities = bulkCustomerService.getDistinctCities();
+            Map<String, Object> response = new HashMap<>();
+            response.put("total_cities", cities.size());
+            response.put("cities", cities);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve distinct cities");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Count customers by area
+    @GetMapping("/count/area/{areaCd}")
+    public ResponseEntity<?> countCustomersByArea(@PathVariable String areaCd) {
+        try {
+            Long count = bulkCustomerService.countCustomersByArea(areaCd);
+            Map<String, Object> response = new HashMap<>();
+            response.put("area_code", areaCd);
+            response.put("customer_count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to count customers by area");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Count customers by zone
+    @GetMapping("/count/zone/{zone}")
+    public ResponseEntity<?> countCustomersByZone(@PathVariable String zone) {
+        try {
+            Long count = bulkCustomerService.countCustomersByZone(zone);
+            Map<String, Object> response = new HashMap<>();
+            response.put("zone", zone);
+            response.put("customer_count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to count customers by zone");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Count customers by operational status
+    @GetMapping("/count/status/{opStat}")
+    public ResponseEntity<?> countCustomersByOpStat(@PathVariable String opStat) {
+        try {
+            Long count = bulkCustomerService.countCustomersByOpStat(opStat);
+            Map<String, Object> response = new HashMap<>();
+            response.put("operational_status", opStat);
+            response.put("customer_count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to count customers by operational status");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+}
