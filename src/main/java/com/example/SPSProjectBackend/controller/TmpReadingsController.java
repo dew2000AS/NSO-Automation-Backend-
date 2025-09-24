@@ -37,12 +37,31 @@ public class TmpReadingsController {
     @Autowired
     private SessionUtils sessionUtils;
 
-    // Get all readings - DEPRECATED, use filtered endpoints
+    // Get all readings with active bill cycle filter (default behavior)
     @GetMapping
-    public ResponseEntity<?> getAllReadings() {
+    public ResponseEntity<?> getAllReadings(
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
-            List<TmpReadingsDTO> readings = tmpReadingsService.getAllReadings();
-                        return ResponseEntity.ok(readings);
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getAllReadingsWithoutFilter();
+            } else {
+                readings = tmpReadingsService.getAllReadings();
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", include_all_cycles ? 
+                "All readings retrieved (all bill cycles)" : 
+                "Readings retrieved (active bill cycles only)");
+            response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
+            response.put("readings", readings);
+            
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to retrieve readings");
@@ -51,18 +70,32 @@ public class TmpReadingsController {
         }
     }
 
-    // FIXED: Get readings by account number - Add session validation
+    // Get readings by account number with active bill cycle filter (default behavior)
     @GetMapping("/account/{accNbr}")
-    public ResponseEntity<?> getReadingsByAccNbr(@PathVariable String accNbr,
-                                                 @RequestParam(required = false) String session_id,
-                                                 @RequestParam(required = false) String user_id) {
+    public ResponseEntity<?> getReadingsByAccNbr(
+            @PathVariable String accNbr,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
-            validateSessionAndAccess(session_id, user_id, null, null, null); // No area-specific check for account
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAccNbr(accNbr);
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsByAccNbrWithoutFilter(accNbr);
+            } else {
+                readings = tmpReadingsService.getReadingsByAccNbr(accNbr);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
+            response.put("message", include_all_cycles ? 
+                "Account readings retrieved (all bill cycles)" : 
+                "Account readings retrieved (active bill cycles only)");
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -78,15 +111,25 @@ public class TmpReadingsController {
             @PathVariable String accNbr,
             @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date rdngDate,
             @RequestParam(required = false) String session_id,
-            @RequestParam(required = false) String user_id) {
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
             validateSessionAndAccess(session_id, user_id, null, null, null);
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAccNbrAndDate(accNbr, rdngDate);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsByAccNbrAndDateWithoutFilter(accNbr, rdngDate);
+            } else {
+                readings = tmpReadingsService.getReadingsByAccNbrAndDate(accNbr, rdngDate);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
             response.put("reading_date", rdngDate);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -98,16 +141,27 @@ public class TmpReadingsController {
 
     // Get latest readings for account
     @GetMapping("/account/{accNbr}/latest")
-    public ResponseEntity<?> getLatestReadingsByAccNbr(@PathVariable String accNbr,
-                                                       @RequestParam(required = false) String session_id,
-                                                       @RequestParam(required = false) String user_id) {
+    public ResponseEntity<?> getLatestReadingsByAccNbr(
+            @PathVariable String accNbr,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
             validateSessionAndAccess(session_id, user_id, null, null, null);
-            List<TmpReadingsDTO> readings = tmpReadingsService.getLatestReadingsByAccNbr(accNbr);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getLatestReadingsByAccNbrWithoutFilter(accNbr);
+            } else {
+                readings = tmpReadingsService.getLatestReadingsByAccNbr(accNbr);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("account_number", accNbr);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -117,18 +171,36 @@ public class TmpReadingsController {
         }
     }
 
-    // FIXED: Get readings by area code - Add session validation and access check
+    // Get readings by area code with active bill cycle filter (default behavior)
     @GetMapping("/area/{areaCd}")
-    public ResponseEntity<?> getReadingsByAreaCd(@PathVariable String areaCd,
-                                                 @RequestParam(required = false) String session_id,
-                                                 @RequestParam(required = false) String user_id) {
+    public ResponseEntity<?> getReadingsByAreaCd(
+            @PathVariable String areaCd,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
             validateSessionAndAccess(session_id, user_id, null, null, areaCd);
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAreaCd(areaCd);
+            
+            List<TmpReadingsDTO> readings;
             Map<String, Object> response = new HashMap<>();
+            
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsByAreaCdWithoutFilter(areaCd);
+                response.put("message", "Area readings retrieved (all bill cycles)");
+            } else {
+                readings = tmpReadingsService.getReadingsByAreaCd(areaCd);
+                response.put("message", "Area readings retrieved (active bill cycle only)");
+                
+                // Add active bill cycle information
+                Optional<Integer> activeBillCycle = tmpReadingsService.getActiveBillCycleForArea(areaCd);
+                response.put("active_bill_cycle", activeBillCycle.orElse(null));
+            }
+            
             response.put("area_code", areaCd);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -137,16 +209,58 @@ public class TmpReadingsController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+    
+    // Get readings by area code and specific bill cycle (for historical data)
+    @GetMapping("/area/{areaCd}/bill-cycle/{billCycle}")
+    public ResponseEntity<?> getReadingsByAreaCdAndBillCycle(
+            @PathVariable String areaCd,
+            @PathVariable String billCycle,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id) {
+        try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
+            
+            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByAreaCdAndBillCycle(areaCd, billCycle);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("area_code", areaCd);
+            response.put("bill_cycle", billCycle);
+            response.put("total_readings", readings.size());
+            response.put("message", "Historical readings retrieved for bill cycle " + billCycle);
+            response.put("readings", readings);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve readings by area code and bill cycle");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 
     // Get readings by meter number
     @GetMapping("/meter/{mtrNbr}")
-    public ResponseEntity<?> getReadingsByMtrNbr(@PathVariable String mtrNbr) {
+    public ResponseEntity<?> getReadingsByMtrNbr(
+            @PathVariable String mtrNbr,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByMtrNbr(mtrNbr);
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsByMtrNbrWithoutFilter(mtrNbr);
+            } else {
+                readings = tmpReadingsService.getReadingsByMtrNbr(mtrNbr);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("meter_number", mtrNbr);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -160,14 +274,27 @@ public class TmpReadingsController {
     @GetMapping("/date-range")
     public ResponseEntity<?> getReadingsByDateRange(
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date startDate,
-            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate) {
+            @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date endDate,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsByDateRange(startDate, endDate);
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsByDateRangeWithoutFilter(startDate, endDate);
+            } else {
+                readings = tmpReadingsService.getReadingsByDateRange(startDate, endDate);
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("start_date", startDate);
             response.put("end_date", endDate);
             response.put("total_readings", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -190,6 +317,7 @@ public class TmpReadingsController {
             @RequestParam(required = false) String user_id) {
         try {
             validateSessionAndAccess(session_id, user_id, null, null, areaCd);
+            
             Optional<TmpReadingsDTO> reading = tmpReadingsService.getSpecificReading(
                 accNbr, areaCd, addedBlcy, mtrSeq, mtrType, rdngDate);
             
@@ -268,12 +396,25 @@ public class TmpReadingsController {
 
     // Get readings with errors
     @GetMapping("/errors")
-    public ResponseEntity<?> getReadingsWithErrors() {
+    public ResponseEntity<?> getReadingsWithErrors(
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
-            List<TmpReadingsDTO> readings = tmpReadingsService.getReadingsWithErrors();
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            
+            List<TmpReadingsDTO> readings;
+            if (include_all_cycles) {
+                readings = tmpReadingsService.getReadingsWithErrorsWithoutFilter();
+            } else {
+                readings = tmpReadingsService.getReadingsWithErrors();
+            }
+            
             Map<String, Object> response = new HashMap<>();
             response.put("total_errors", readings.size());
+            response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
@@ -316,8 +457,28 @@ public class TmpReadingsController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+    
+    // Get active bill cycle for area
+    @GetMapping("/area/{areaCd}/active-bill-cycle")
+    public ResponseEntity<?> getActiveBillCycleForArea(@PathVariable String areaCd) {
+        try {
+            Optional<Integer> activeBillCycle = tmpReadingsService.getActiveBillCycleForArea(areaCd);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("area_code", areaCd);
+            response.put("active_bill_cycle", activeBillCycle.orElse(null));
+            response.put("has_active_bill_cycle", activeBillCycle.isPresent());
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to retrieve active bill cycle");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
 
-    // FIXED: Helper method to validate session and access
+    // Helper method to validate session and access
     private void validateSessionAndAccess(String sessionId, String userId, String targetRegionCode, String targetProvinceCode, String targetAreaCode) {
         if (sessionId != null && userId != null) {
             // Validate session

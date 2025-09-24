@@ -14,43 +14,130 @@ import java.util.Optional;
 @Repository
 public interface TmpReadingsRepository extends JpaRepository<TmpReadings, TmpReadingsId> {
     
-    // Find all readings by account number
+    // Find all readings by account number with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.accNbr = :accNbr " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.rdngDate DESC, t.mtrType")
+    List<TmpReadings> findByAccNbrWithActiveBillCycle(@Param("accNbr") String accNbr);
+    
+    // Find readings by account number and reading date with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.accNbr = :accNbr AND t.rdngDate = :rdngDate " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.mtrType")
+    List<TmpReadings> findByAccNbrAndRdngDateWithActiveBillCycle(@Param("accNbr") String accNbr, @Param("rdngDate") Date rdngDate);
+    
+    // Find readings by area code with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.areaCd = :areaCd " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = :areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findByAreaCdWithActiveBillCycle(@Param("areaCd") String areaCd);
+    
+    // Find readings by area code and specific bill cycle (for historical data)
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.areaCd = :areaCd AND t.addedBlcy = :billCycle " +
+           "ORDER BY t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findByAreaCdAndBillCycle(@Param("areaCd") String areaCd, @Param("billCycle") String billCycle);
+    
+    // Find readings by meter number with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.mtrNbr = :mtrNbr " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.rdngDate DESC")
+    List<TmpReadings> findByMtrNbrWithActiveBillCycle(@Param("mtrNbr") String mtrNbr);
+    
+    // Find readings by date range with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.rdngDate BETWEEN :startDate AND :endDate " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.accNbr, t.rdngDate")
+    List<TmpReadings> findByDateRangeWithActiveBillCycle(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+    
+    // Find readings by account and date range with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.accNbr = :accNbr AND t.rdngDate BETWEEN :startDate AND :endDate " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.rdngDate DESC, t.mtrType")
+    List<TmpReadings> findByAccNbrAndDateRangeWithActiveBillCycle(@Param("accNbr") String accNbr, @Param("startDate") Date startDate, @Param("endDate") Date endDate);
+    
+    // Find latest readings for an account with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.accNbr = :accNbr " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "AND t.rdngDate = (SELECT MAX(t2.rdngDate) FROM TmpReadings t2 " +
+           "                  WHERE t2.accNbr = :accNbr " +
+           "                  AND t2.addedBlcy IN (SELECT CAST(bc2.billCycle AS string) FROM BillCycleConfig bc2 " +
+           "                                       WHERE bc2.areaCode = t2.areaCd AND bc2.cycleStat = 1))")
+    List<TmpReadings> findLatestReadingsByAccNbrWithActiveBillCycle(@Param("accNbr") String accNbr);
+    
+    // Find readings by user ID with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.userId = :userId " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.enteredDtime DESC")
+    List<TmpReadings> findByUserIdWithActiveBillCycle(@Param("userId") String userId);
+    
+    // Find readings by bill status with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.billStat = :billStat " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findByBillStatWithActiveBillCycle(@Param("billStat") String billStat);
+    
+    // Find readings with errors with active bill cycle filter
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.errStat > 0 " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findReadingsWithErrorsWithActiveBillCycle();
+    
+    // Get all readings with active bill cycle filter (main method for default behavior)
+    @Query("SELECT t FROM TmpReadings t " +
+           "WHERE t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                     WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "ORDER BY t.areaCd, t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findAllWithActiveBillCycle();
+    
+    // Original methods kept for backward compatibility and historical data access
     @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr ORDER BY t.rdngDate DESC, t.mtrType")
     List<TmpReadings> findByAccNbr(@Param("accNbr") String accNbr);
     
-    // Find readings by account number and reading date
     @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.rdngDate = :rdngDate ORDER BY t.mtrType")
     List<TmpReadings> findByAccNbrAndRdngDate(@Param("accNbr") String accNbr, @Param("rdngDate") Date rdngDate);
     
-    // Find readings by area code
     @Query("SELECT t FROM TmpReadings t WHERE t.areaCd = :areaCd ORDER BY t.accNbr, t.rdngDate DESC")
     List<TmpReadings> findByAreaCd(@Param("areaCd") String areaCd);
     
-    // Find readings by meter number
     @Query("SELECT t FROM TmpReadings t WHERE t.mtrNbr = :mtrNbr ORDER BY t.rdngDate DESC")
     List<TmpReadings> findByMtrNbr(@Param("mtrNbr") String mtrNbr);
     
-    // Find readings by date range
     @Query("SELECT t FROM TmpReadings t WHERE t.rdngDate BETWEEN :startDate AND :endDate ORDER BY t.accNbr, t.rdngDate")
     List<TmpReadings> findByDateRange(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
     
-    // Find readings by account and date range
     @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.rdngDate BETWEEN :startDate AND :endDate ORDER BY t.rdngDate DESC, t.mtrType")
     List<TmpReadings> findByAccNbrAndDateRange(@Param("accNbr") String accNbr, @Param("startDate") Date startDate, @Param("endDate") Date endDate);
     
-    // Find latest readings for an account
     @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.rdngDate = (SELECT MAX(t2.rdngDate) FROM TmpReadings t2 WHERE t2.accNbr = :accNbr)")
     List<TmpReadings> findLatestReadingsByAccNbr(@Param("accNbr") String accNbr);
     
-    // Find readings by user ID
     @Query("SELECT t FROM TmpReadings t WHERE t.userId = :userId ORDER BY t.enteredDtime DESC")
     List<TmpReadings> findByUserId(@Param("userId") String userId);
     
-    // Find readings by bill status
     @Query("SELECT t FROM TmpReadings t WHERE t.billStat = :billStat ORDER BY t.accNbr, t.rdngDate DESC")
     List<TmpReadings> findByBillStat(@Param("billStat") String billStat);
     
-    // Find readings with errors
     @Query("SELECT t FROM TmpReadings t WHERE t.errStat > 0 ORDER BY t.accNbr, t.rdngDate DESC")
     List<TmpReadings> findReadingsWithErrors();
     
