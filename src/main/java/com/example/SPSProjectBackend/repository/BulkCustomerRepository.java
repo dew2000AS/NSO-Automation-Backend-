@@ -148,4 +148,8 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
            "UPPER(c.city) LIKE UPPER(CONCAT('%', :searchTerm, '%'))) " +
            "ORDER BY c.accNbr")
     List<BulkCustomer> searchCustomers(@Param("searchTerm") String searchTerm);
+
+    // method to the existing repository
+    @Query("SELECT c FROM BulkCustomer c WHERE c.accNbr IN :accNbrs AND c.areaCd = :areaCd ORDER BY c.accNbr")
+    List<BulkCustomer> findByAccNbrInAndAreaCd(@Param("accNbrs") List<String> accNbrs, @Param("areaCd") String areaCd);
 }

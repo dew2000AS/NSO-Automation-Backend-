@@ -2,10 +2,15 @@ package com.example.SPSProjectBackend.controller;
 
 import com.example.SPSProjectBackend.dto.BulkCustomerDTO;
 import com.example.SPSProjectBackend.service.BulkCustomerService;
+import com.example.SPSProjectBackend.service.SecInfoAuthService;
+import com.example.SPSProjectBackend.service.HsbLocationService;
+import com.example.SPSProjectBackend.util.SessionUtils;
+import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,7 +25,16 @@ public class BulkCustomerController {
     @Autowired
     private BulkCustomerService bulkCustomerService;
 
-    // Get all customers
+    @Autowired
+    private SecInfoAuthService secInfoAuthService;
+
+    @Autowired
+    private HsbLocationService locationService;
+
+    @Autowired
+    private SessionUtils sessionUtils;
+
+    // Get all customers - DEPRECATED, use filtered endpoints
     @GetMapping
     public ResponseEntity<?> getAllCustomers() {
         try {
@@ -37,10 +51,13 @@ public class BulkCustomerController {
         }
     }
 
-    // Get customer by account number
+    // Get customer by account number - Add session validation if needed
     @GetMapping("/account/{accNbr}")
-    public ResponseEntity<?> getCustomerByAccNbr(@PathVariable String accNbr) {
+    public ResponseEntity<?> getCustomerByAccNbr(@PathVariable String accNbr,
+                                                 @RequestParam(required = false) String session_id,
+                                                 @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             Optional<BulkCustomerDTO> customer = bulkCustomerService.getCustomerByAccNbr(accNbr);
             
             if (customer.isPresent()) {
@@ -62,10 +79,13 @@ public class BulkCustomerController {
         }
     }
 
-    // Get customers by area code
+    // Get customers by area code - Add session validation and access check
     @GetMapping("/area/{areaCd}")
-    public ResponseEntity<?> getCustomersByAreaCd(@PathVariable String areaCd) {
+    public ResponseEntity<?> getCustomersByAreaCd(@PathVariable String areaCd,
+                                                  @RequestParam(required = false) String session_id,
+                                                  @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByAreaCd(areaCd);
             Map<String, Object> response = new HashMap<>();
             response.put("area_code", areaCd);
@@ -82,8 +102,11 @@ public class BulkCustomerController {
 
     // Get customers by zone
     @GetMapping("/zone/{zone}")
-    public ResponseEntity<?> getCustomersByZone(@PathVariable String zone) {
+    public ResponseEntity<?> getCustomersByZone(@PathVariable String zone,
+                                                @RequestParam(required = false) String session_id,
+                                                @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByZone(zone);
             Map<String, Object> response = new HashMap<>();
             response.put("zone", zone);
@@ -100,8 +123,11 @@ public class BulkCustomerController {
 
     // Get customers by zone and area
     @GetMapping("/zone/{zone}/area/{areaCd}")
-    public ResponseEntity<?> getCustomersByZoneAndArea(@PathVariable String zone, @PathVariable String areaCd) {
+    public ResponseEntity<?> getCustomersByZoneAndArea(@PathVariable String zone, @PathVariable String areaCd,
+                                                       @RequestParam(required = false) String session_id,
+                                                       @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByZoneAndArea(zone, areaCd);
             Map<String, Object> response = new HashMap<>();
             response.put("zone", zone);
@@ -119,8 +145,11 @@ public class BulkCustomerController {
 
     // Search customers by name
     @GetMapping("/search/name")
-    public ResponseEntity<?> searchCustomersByName(@RequestParam String name) {
+    public ResponseEntity<?> searchCustomersByName(@RequestParam String name,
+                                                   @RequestParam(required = false) String session_id,
+                                                   @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomersByName(name);
             Map<String, Object> response = new HashMap<>();
             response.put("search_term", name);
@@ -137,8 +166,11 @@ public class BulkCustomerController {
 
     // Get customers by tariff
     @GetMapping("/tariff/{tariff}")
-    public ResponseEntity<?> getCustomersByTariff(@PathVariable String tariff) {
+    public ResponseEntity<?> getCustomersByTariff(@PathVariable String tariff,
+                                                  @RequestParam(required = false) String session_id,
+                                                  @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByTariff(tariff);
             Map<String, Object> response = new HashMap<>();
             response.put("tariff", tariff);
@@ -155,8 +187,11 @@ public class BulkCustomerController {
 
     // Get customers by operational status
     @GetMapping("/status/{opStat}")
-    public ResponseEntity<?> getCustomersByOpStat(@PathVariable String opStat) {
+    public ResponseEntity<?> getCustomersByOpStat(@PathVariable String opStat,
+                                                  @RequestParam(required = false) String session_id,
+                                                  @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByOpStat(opStat);
             Map<String, Object> response = new HashMap<>();
             response.put("operational_status", opStat);
@@ -173,8 +208,11 @@ public class BulkCustomerController {
 
     // Get customer by mobile number
     @GetMapping("/mobile/{mobileNo}")
-    public ResponseEntity<?> getCustomerByMobileNo(@PathVariable String mobileNo) {
+    public ResponseEntity<?> getCustomerByMobileNo(@PathVariable String mobileNo,
+                                                   @RequestParam(required = false) String session_id,
+                                                   @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             Optional<BulkCustomerDTO> customer = bulkCustomerService.getCustomerByMobileNo(mobileNo);
             
             if (customer.isPresent()) {
@@ -199,8 +237,11 @@ public class BulkCustomerController {
 
     // Get customers by city
     @GetMapping("/city/{city}")
-    public ResponseEntity<?> getCustomersByCity(@PathVariable String city) {
+    public ResponseEntity<?> getCustomersByCity(@PathVariable String city,
+                                                @RequestParam(required = false) String session_id,
+                                                @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByCity(city);
             Map<String, Object> response = new HashMap<>();
             response.put("city", city);
@@ -217,8 +258,11 @@ public class BulkCustomerController {
 
     // Get customers by bill cycle
     @GetMapping("/bill-cycle/{billCycle}")
-    public ResponseEntity<?> getCustomersByBillCycle(@PathVariable Integer billCycle) {
+    public ResponseEntity<?> getCustomersByBillCycle(@PathVariable Integer billCycle,
+                                                     @RequestParam(required = false) String session_id,
+                                                     @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.getCustomersByBillCycle(billCycle);
             Map<String, Object> response = new HashMap<>();
             response.put("bill_cycle", billCycle);
@@ -240,8 +284,11 @@ public class BulkCustomerController {
             @RequestParam(required = false) String zone,
             @RequestParam(required = false) String tariff,
             @RequestParam(required = false) String opStat,
-            @RequestParam(required = false) String cusCat) {
+            @RequestParam(required = false) String cusCat,
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomersByMultipleCriteria(areaCd, zone, tariff, opStat, cusCat);
             Map<String, Object> response = new HashMap<>();
             Map<String, Object> searchCriteria = new HashMap<>();
@@ -264,8 +311,11 @@ public class BulkCustomerController {
 
     // General search customers
     @GetMapping("/search")
-    public ResponseEntity<?> searchCustomers(@RequestParam String searchTerm) {
+    public ResponseEntity<?> searchCustomers(@RequestParam String searchTerm,
+                                             @RequestParam(required = false) String session_id,
+                                             @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             List<BulkCustomerDTO> customers = bulkCustomerService.searchCustomers(searchTerm);
             Map<String, Object> response = new HashMap<>();
             response.put("search_term", searchTerm);
@@ -421,8 +471,11 @@ public class BulkCustomerController {
 
     // Count customers by area
     @GetMapping("/count/area/{areaCd}")
-    public ResponseEntity<?> countCustomersByArea(@PathVariable String areaCd) {
+    public ResponseEntity<?> countCustomersByArea(@PathVariable String areaCd,
+                                                  @RequestParam(required = false) String session_id,
+                                                  @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             Long count = bulkCustomerService.countCustomersByArea(areaCd);
             Map<String, Object> response = new HashMap<>();
             response.put("area_code", areaCd);
@@ -438,8 +491,11 @@ public class BulkCustomerController {
 
     // Count customers by zone
     @GetMapping("/count/zone/{zone}")
-    public ResponseEntity<?> countCustomersByZone(@PathVariable String zone) {
+    public ResponseEntity<?> countCustomersByZone(@PathVariable String zone,
+                                                  @RequestParam(required = false) String session_id,
+                                                  @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             Long count = bulkCustomerService.countCustomersByZone(zone);
             Map<String, Object> response = new HashMap<>();
             response.put("zone", zone);
@@ -455,8 +511,11 @@ public class BulkCustomerController {
 
     // Count customers by operational status
     @GetMapping("/count/status/{opStat}")
-    public ResponseEntity<?> countCustomersByOpStat(@PathVariable String opStat) {
+    public ResponseEntity<?> countCustomersByOpStat(@PathVariable String opStat,
+                                                    @RequestParam(required = false) String session_id,
+                                                    @RequestParam(required = false) String user_id) {
         try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
             Long count = bulkCustomerService.countCustomersByOpStat(opStat);
             Map<String, Object> response = new HashMap<>();
             response.put("operational_status", opStat);
@@ -467,6 +526,33 @@ public class BulkCustomerController {
             error.put("error", "Failed to count customers by operational status");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Helper method to validate session and access
+    private void validateSessionAndAccess(String sessionId, String userId, String targetRegionCode, String targetProvinceCode, String targetAreaCode) {
+        if (sessionId != null && userId != null) {
+            // Validate session
+            SecInfoLoginDTO.SessionValidationRequest validationRequest = new SecInfoLoginDTO.SessionValidationRequest();
+            validationRequest.setSessionId(sessionId);
+            validationRequest.setUserId(userId);
+            SecInfoLoginDTO.SessionValidationResponse validationResponse = secInfoAuthService.validateSession(validationRequest);
+            if (!validationResponse.getValid()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired session");
+            }
+
+            // If area-specific, validate access
+            if (targetAreaCode != null) {
+                Optional<com.example.SPSProjectBackend.dto.HsbAreaDTO> areaOpt = locationService.getAreaByCode(targetAreaCode);
+                if (areaOpt.isEmpty()) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Area not found");
+                }
+                com.example.SPSProjectBackend.dto.HsbAreaDTO area = areaOpt.get();
+                boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, area.getRegion(), area.getProvCode(), targetAreaCode);
+                if (!hasAccess) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this area");
+                }
+            }
         }
     }
 }

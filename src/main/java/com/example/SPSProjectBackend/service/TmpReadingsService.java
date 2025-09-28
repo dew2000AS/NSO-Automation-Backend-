@@ -4,6 +4,7 @@ import com.example.SPSProjectBackend.dto.TmpReadingsDTO;
 import com.example.SPSProjectBackend.model.TmpReadings;
 import com.example.SPSProjectBackend.model.TmpReadingsId;
 import com.example.SPSProjectBackend.repository.TmpReadingsRepository;
+import com.example.SPSProjectBackend.repository.BillCycleConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,25 +20,41 @@ public class TmpReadingsService {
 
     @Autowired
     private TmpReadingsRepository tmpReadingsRepository;
+    
+    @Autowired
+    private BillCycleConfigRepository billCycleConfigRepository;
 
-    // Get all readings
+    // Get all readings with active bill cycle filter (default behavior)
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getAllReadings() {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findAll();
+            List<TmpReadings> readings = tmpReadingsRepository.findAllWithActiveBillCycle();
             return readings.stream()
                     .map(this::convertToDTO)
-                                        .collect(Collectors.toList());
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve all readings: " + e.getMessage(), e);
         }
     }
+    
+    // Get all readings without bill cycle filter (for historical access)
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getAllReadingsWithoutFilter() {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findAll();
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve all readings without filter: " + e.getMessage(), e);
+        }
+    }
 
-    // Get readings by account number
+    // Get readings by account number with active bill cycle filter (default behavior)
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbr(String accNbr) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbr(accNbr);
+            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrWithActiveBillCycle(accNbr);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -45,12 +62,25 @@ public class TmpReadingsService {
             throw new RuntimeException("Failed to retrieve readings for account: " + accNbr + " - " + e.getMessage(), e);
         }
     }
+    
+    // Get readings by account number without bill cycle filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByAccNbrWithoutFilter(String accNbr) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbr(accNbr);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings for account without filter: " + accNbr + " - " + e.getMessage(), e);
+        }
+    }
 
-    // Get readings by account number and date
+    // Get readings by account number and date with active bill cycle filter
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbrAndDate(String accNbr, Date rdngDate) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrAndRdngDate(accNbr, rdngDate);
+            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrAndRdngDateWithActiveBillCycle(accNbr, rdngDate);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -58,12 +88,25 @@ public class TmpReadingsService {
             throw new RuntimeException("Failed to retrieve readings: " + e.getMessage(), e);
         }
     }
+    
+    // Get readings by account number and date without filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByAccNbrAndDateWithoutFilter(String accNbr, Date rdngDate) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrAndRdngDate(accNbr, rdngDate);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings without filter: " + e.getMessage(), e);
+        }
+    }
 
-    // Get readings by area code
+    // Get readings by area code with active bill cycle filter (default behavior)
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAreaCd(String areaCd) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCd(areaCd);
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdWithActiveBillCycle(areaCd);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -71,12 +114,38 @@ public class TmpReadingsService {
             throw new RuntimeException("Failed to retrieve readings by area code: " + e.getMessage(), e);
         }
     }
+    
+    // Get readings by area code without bill cycle filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByAreaCdWithoutFilter(String areaCd) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCd(areaCd);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings by area code without filter: " + e.getMessage(), e);
+        }
+    }
+    
+    // Get readings by area code and specific bill cycle (for historical data)
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByAreaCdAndBillCycle(String areaCd, String billCycle) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdAndBillCycle(areaCd, billCycle);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings by area code and bill cycle: " + e.getMessage(), e);
+        }
+    }
 
-    // Get readings by meter number
+    // Get readings by meter number with active bill cycle filter
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByMtrNbr(String mtrNbr) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbr(mtrNbr);
+            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbrWithActiveBillCycle(mtrNbr);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -84,12 +153,25 @@ public class TmpReadingsService {
             throw new RuntimeException("Failed to retrieve readings by meter number: " + e.getMessage(), e);
         }
     }
+    
+    // Get readings by meter number without filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByMtrNbrWithoutFilter(String mtrNbr) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbr(mtrNbr);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings by meter number without filter: " + e.getMessage(), e);
+        }
+    }
 
-    // Get readings by date range
+    // Get readings by date range with active bill cycle filter
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByDateRange(Date startDate, Date endDate) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByDateRange(startDate, endDate);
+            List<TmpReadings> readings = tmpReadingsRepository.findByDateRangeWithActiveBillCycle(startDate, endDate);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -97,17 +179,53 @@ public class TmpReadingsService {
             throw new RuntimeException("Failed to retrieve readings by date range: " + e.getMessage(), e);
         }
     }
+    
+    // Get readings by date range without filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsByDateRangeWithoutFilter(Date startDate, Date endDate) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findByDateRange(startDate, endDate);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings by date range without filter: " + e.getMessage(), e);
+        }
+    }
 
-    // Get latest readings for account
+    // Get latest readings for account with active bill cycle filter
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getLatestReadingsByAccNbr(String accNbr) {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findLatestReadingsByAccNbrWithActiveBillCycle(accNbr);
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve latest readings: " + e.getMessage(), e);
+        }
+    }
+    
+    // Get latest readings for account without filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getLatestReadingsByAccNbrWithoutFilter(String accNbr) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findLatestReadingsByAccNbr(accNbr);
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve latest readings: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve latest readings without filter: " + e.getMessage(), e);
+        }
+    }
+    
+    // Get active bill cycle for an area
+    @Transactional(readOnly = true)
+    public Optional<Integer> getActiveBillCycleForArea(String areaCd) {
+        try {
+            return billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCd);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve active bill cycle for area: " + e.getMessage(), e);
         }
     }
 
@@ -191,16 +309,29 @@ public class TmpReadingsService {
         }
     }
 
-    // Get readings with errors
+    // Get readings with errors with active bill cycle filter
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsWithErrors() {
+        try {
+            List<TmpReadings> readings = tmpReadingsRepository.findReadingsWithErrorsWithActiveBillCycle();
+            return readings.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve readings with errors: " + e.getMessage(), e);
+        }
+    }
+    
+    // Get readings with errors without filter
+    @Transactional(readOnly = true)
+    public List<TmpReadingsDTO> getReadingsWithErrorsWithoutFilter() {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findReadingsWithErrors();
             return readings.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings with errors: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve readings with errors without filter: " + e.getMessage(), e);
         }
     }
 
@@ -327,4 +458,5 @@ public class TmpReadingsService {
         reading.setEditedDtime(dto.getEditedDtime());
         return reading;
     }
+
 }
