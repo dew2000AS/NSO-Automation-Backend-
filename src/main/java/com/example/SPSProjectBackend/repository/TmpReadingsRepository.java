@@ -160,4 +160,84 @@ public interface TmpReadingsRepository extends JpaRepository<TmpReadings, TmpRea
     // Get distinct meter types
     @Query("SELECT DISTINCT t.mtrType FROM TmpReadings t ORDER BY t.mtrType")
     List<String> findDistinctMtrTypes();
+    
+    // === NEW METHODS TO ADD FOR METER READING INFO FUNCTIONALITY ===
+    
+    /**
+     * Find readings by account number, area code, and bill cycle
+     * This is CRITICAL for the MeterReadingInfoService
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd AND t.addedBlcy = :billCycle ORDER BY t.mtrType")
+    List<TmpReadings> findByAccNbrAndAreaCdAndAddedBlcy(@Param("accNbr") String accNbr, 
+                                                       @Param("areaCd") String areaCd, 
+                                                       @Param("billCycle") String billCycle);
+    
+    /**
+     * Find readings with errors without active bill cycle filter
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.errStat IS NOT NULL AND t.errStat > 0 ORDER BY t.accNbr, t.rdngDate DESC")
+    List<TmpReadings> findReadingsWithErrorsWithoutFilter();
+    
+    /**
+     * Find latest readings for account with active bill cycle filter (alternative implementation)
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr " +
+           "AND t.addedBlcy IN (SELECT CAST(bc.billCycle AS string) FROM BillCycleConfig bc " +
+           "                   WHERE bc.areaCode = t.areaCd AND bc.cycleStat = 1) " +
+           "AND t.rdngDate = (SELECT MAX(t2.rdngDate) FROM TmpReadings t2 WHERE t2.accNbr = :accNbr " +
+           "                  AND t2.addedBlcy IN (SELECT CAST(bc2.billCycle AS string) FROM BillCycleConfig bc2 " +
+           "                                       WHERE bc2.areaCode = t2.areaCd AND bc2.cycleStat = 1)) " +
+           "ORDER BY t.mtrType")
+    List<TmpReadings> findLatestReadingsByAccNbrWithActiveBillCycleOrdered(@Param("accNbr") String accNbr);
+    
+    /**
+     * Find readings by account number and area code (without bill cycle filter)
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd ORDER BY t.rdngDate DESC, t.mtrType")
+    List<TmpReadings> findByAccNbrAndAreaCd(@Param("accNbr") String accNbr, @Param("areaCd") String areaCd);
+    
+    /**
+     * Find readings by account number, area code, and date range
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd " +
+           "AND t.rdngDate BETWEEN :startDate AND :endDate ORDER BY t.rdngDate DESC, t.mtrType")
+    List<TmpReadings> findByAccNbrAndAreaCdAndDateRange(@Param("accNbr") String accNbr, @Param("areaCd") String areaCd,
+                                                       @Param("startDate") Date startDate, @Param("endDate") Date endDate);
+    
+    /**
+     * Count readings by account number and bill cycle
+     */
+    @Query("SELECT COUNT(t) FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd AND t.addedBlcy = :billCycle")
+    Long countByAccNbrAndAreaCdAndBillCycle(@Param("accNbr") String accNbr, @Param("areaCd") String areaCd, 
+                                           @Param("billCycle") String billCycle);
+    
+    /**
+     * Check if customer has readings for specific bill cycle
+     */
+    @Query("SELECT CASE WHEN COUNT(t) > 0 THEN true ELSE false END FROM TmpReadings t " +
+           "WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd AND t.addedBlcy = :billCycle")
+    boolean hasReadingsForBillCycle(@Param("accNbr") String accNbr, @Param("areaCd") String areaCd, 
+                                   @Param("billCycle") String billCycle);
+    
+    /**
+     * Get distinct bill cycles for an account in an area
+     */
+    @Query("SELECT DISTINCT t.addedBlcy FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd ORDER BY t.addedBlcy DESC")
+    List<String> findDistinctBillCyclesByAccNbrAndAreaCd(@Param("accNbr") String accNbr, @Param("areaCd") String areaCd);
+    
+    /**
+     * Get readings by multiple account numbers and bill cycle (for bulk operations)
+     */
+    @Query("SELECT t FROM TmpReadings t WHERE t.accNbr IN :accNbrs AND t.areaCd = :areaCd AND t.addedBlcy = :billCycle ORDER BY t.accNbr, t.mtrType")
+    List<TmpReadings> findByAccNbrsAndAreaCdAndBillCycle(@Param("accNbrs") List<String> accNbrs, 
+                                                        @Param("areaCd") String areaCd, 
+                                                        @Param("billCycle") String billCycle);
+    
+    /**
+     * Get the latest reading date for an account in an area for a specific bill cycle
+     */
+    @Query("SELECT MAX(t.rdngDate) FROM TmpReadings t WHERE t.accNbr = :accNbr AND t.areaCd = :areaCd AND t.addedBlcy = :billCycle")
+    Optional<Date> findLatestReadingDateByAccNbrAndAreaCdAndBillCycle(@Param("accNbr") String accNbr, 
+                                                                     @Param("areaCd") String areaCd, 
+                                                                     @Param("billCycle") String billCycle);
 }
