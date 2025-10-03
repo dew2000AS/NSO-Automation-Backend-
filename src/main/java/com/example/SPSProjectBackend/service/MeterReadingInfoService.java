@@ -362,4 +362,276 @@ public class MeterReadingInfoService {
         response.setTimestamp(new Date().toString());
         return response;
     }
+
+    /**
+ * Edit meter readings for a customer - FIXED VERSION
+ */
+@Transactional
+public MeterReadingEditResponse editMeterReadings(String sessionId, String userId, 
+                                                String accountNumber, String areaCode, 
+                                                String billCycle, Date readingDate,
+                                                List<MeterReadingEditDTO> meterReadings) {
+    try {
+        // Validate session and access
+        validateSessionAndAccess(sessionId, userId, areaCode);
+
+        // Get customer information
+        Optional<BulkCustomer> customerOpt = bulkCustomerRepository.findByAccNbr(accountNumber);
+        if (!customerOpt.isPresent()) {
+            return createEditErrorResponse("Customer not found with account number: " + accountNumber);
+        }
+
+        BulkCustomer customer = customerOpt.get();
+
+        // Validate area code matches customer's area
+        if (!areaCode.equals(customer.getAreaCd())) {
+            return createEditErrorResponse("Customer does not belong to area: " + areaCode);
+        }
+
+        // Validate reading date is not in the future
+        if (isFutureDate(readingDate)) {
+            return createEditErrorResponse("Reading date cannot be a future date");
+        }
+
+        // Get existing temp readings for this customer and bill cycle
+        List<TmpReadings> existingReadings = tmpReadingsRepository.findByAccNbrAndAreaCdAndAddedBlcy(
+                customer.getAccNbr(), areaCode, billCycle);
+
+        if (existingReadings.isEmpty()) {
+            return createEditErrorResponse("No existing readings found for editing");
+        }
+
+        // Update readings based on the edit request
+        boolean hasUpdates = updateReadings(existingReadings, readingDate, meterReadings, userId);
+
+        if (!hasUpdates) {
+            return createEditErrorResponse("No valid updates provided");
+        }
+
+        // Note: Reading date updates are handled within updateReadings method
+        // Present reading updates are saved here
+        if (!meterReadings.isEmpty()) {
+            tmpReadingsRepository.saveAll(existingReadings);
+            tmpReadingsRepository.flush();
+        }
+
+        // Recalculate and update TmpMonTot if needed
+        updateTmpMonTot(customer.getAccNbr(), areaCode, billCycle, userId);
+
+        // Get updated meter reading information
+        MeterReadingInfoDetailsDTO updatedReadingInfo = getMeterReadingDetails(customer, areaCode, billCycle);
+
+        return createEditSuccessResponse("Meter readings updated successfully", updatedReadingInfo);
+
+    } catch (Exception e) {
+        e.printStackTrace(); // Add proper logging
+        return createEditErrorResponse("Failed to update meter readings: " + e.getMessage());
+    }
+}
+
+    /**
+ * Update readings based on edit request - FIXED VERSION
+ */
+private boolean updateReadings(List<TmpReadings> existingReadings, Date newReadingDate, 
+                              List<MeterReadingEditDTO> meterReadings, String userId) {
+    boolean hasUpdates = false;
+    Date currentTime = new Date();
+
+    // IMPORTANT: For Informix, we cannot update primary key fields directly
+    // We need to handle date updates differently
+    
+    // Update present readings for specific meter types FIRST
+    for (MeterReadingEditDTO editDTO : meterReadings) {
+        if (editDTO.getPresentReading() != null) {
+            for (TmpReadings reading : existingReadings) {
+                if (reading.getMtrType().trim().equals(editDTO.getMeterType().trim())) {
+                    
+                    // Special handling for KVAH/KVArh meter type
+                    if ("KVAH".equals(editDTO.getMeterType().trim()) || "KVArh".equals(editDTO.getMeterType().trim())) {
+                        // For KVAH/KVArh, update units instead of present reading
+                        reading.setUnits(editDTO.getPresentReading());
+                        // Recalculate computed charge if rate exists
+                        if (reading.getRate() != null && reading.getRate().compareTo(BigDecimal.ZERO) > 0) {
+                            BigDecimal computedChg = reading.getRate().multiply(new BigDecimal(editDTO.getPresentReading()));
+                            reading.setComputedChg(computedChg);
+                        }
+                    } else {
+                        // For other meter types, update present reading and recalculate units
+                        int previousReading = reading.getPrvRdn() != null ? reading.getPrvRdn() : 0;
+                        int newUnits = editDTO.getPresentReading() - previousReading;
+                        
+                        if (newUnits >= 0) {
+                            reading.setPrsntRdn(editDTO.getPresentReading());
+                            reading.setUnits(newUnits);
+                            
+                            // Recompute charge if rate exists
+                            if (reading.getRate() != null && reading.getRate().compareTo(BigDecimal.ZERO) > 0) {
+                                BigDecimal computedChg = reading.getRate().multiply(new BigDecimal(newUnits));
+                                reading.setComputedChg(computedChg);
+                            }
+                        }
+                    }
+                    
+                    reading.setEditedDtime(currentTime);
+                    reading.setEditedUserId(userId);
+                    hasUpdates = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Handle reading date update SEPARATELY with native query
+    if (newReadingDate != null) {
+        boolean dateChanged = false;
+        
+        // Check if any reading date is different
+        for (TmpReadings reading : existingReadings) {
+            if (!reading.getRdngDate().equals(newReadingDate)) {
+                dateChanged = true;
+                break;
+            }
+        }
+        
+        if (dateChanged) {
+            // Use native query to update reading date for all records
+            updateReadingDateWithNativeQuery(existingReadings, newReadingDate, userId);
+            hasUpdates = true;
+        }
+    }
+
+    return hasUpdates;
+}
+
+/**
+ * Update reading date using native query to avoid primary key issues - FIXED
+ */
+private void updateReadingDateWithNativeQuery(List<TmpReadings> existingReadings, Date newReadingDate, String userId) {
+    try {
+        // Get the first reading to extract common identifiers
+        TmpReadings firstReading = existingReadings.get(0);
+        
+        String accNbr = firstReading.getAccNbr();
+        String areaCd = firstReading.getAreaCd();
+        String addedBlcy = firstReading.getAddedBlcy();
+        Integer mtrSeq = firstReading.getMtrSeq();
+        Date oldReadingDate = firstReading.getRdngDate();
+        Date currentTime = new Date();
+        
+        // Execute native update - REMOVE the query string parameter
+        int updatedRows = tmpReadingsRepository.executeNativeUpdate(
+            newReadingDate,    // ?1 - newRdngDate
+            currentTime,       // ?2 - editedDtime  
+            userId,            // ?3 - editedUserId
+            accNbr,            // ?4 - accNbr
+            areaCd,            // ?5 - areaCd
+            addedBlcy,         // ?6 - addedBlcy
+            mtrSeq,            // ?7 - mtrSeq
+            oldReadingDate     // ?8 - oldRdngDate
+        );
+        
+        System.out.println("Updated " + updatedRows + " reading records with new date");
+        
+    } catch (Exception e) {
+        System.err.println("Error updating reading date with native query: " + e.getMessage());
+        throw new RuntimeException("Failed to update reading date: " + e.getMessage());
+    }
+}
+
+    /**
+     * Update TmpMonTot with recalculated totals
+     */
+    private void updateTmpMonTot(String accNbr, String areaCode, String billCycle, String userId) {
+        try {
+            Optional<TmpMonTot> tmpMonTotOpt = tmpMonTotRepository.findByAccNbrAndBillCycle(accNbr, billCycle);
+            
+            if (tmpMonTotOpt.isPresent()) {
+                TmpMonTot tmpMonTot = tmpMonTotOpt.get();
+                
+                // Get updated readings to recalculate totals
+                List<TmpReadings> updatedReadings = tmpReadingsRepository.findByAccNbrAndAreaCdAndAddedBlcy(
+                        accNbr, areaCode, billCycle);
+                
+                // Recalculate totals based on updated readings
+                BigDecimal totalCharge = BigDecimal.ZERO;
+                BigDecimal totalUnitsKwo = BigDecimal.ZERO;
+                BigDecimal totalUnitsKwd = BigDecimal.ZERO;
+                BigDecimal totalUnitsKwp = BigDecimal.ZERO;
+                BigDecimal totalKva = BigDecimal.ZERO;
+                
+                for (TmpReadings reading : updatedReadings) {
+                    if (reading.getComputedChg() != null) {
+                        totalCharge = totalCharge.add(reading.getComputedChg());
+                    }
+                    
+                    // Accumulate units by meter type
+                    if (reading.getUnits() != null) {
+                        switch (reading.getMtrType().trim()) {
+                            case "KWO":
+                                totalUnitsKwo = totalUnitsKwo.add(new BigDecimal(reading.getUnits()));
+                                break;
+                            case "KWD":
+                                totalUnitsKwd = totalUnitsKwd.add(new BigDecimal(reading.getUnits()));
+                                break;
+                            case "KWP":
+                                totalUnitsKwp = totalUnitsKwp.add(new BigDecimal(reading.getUnits()));
+                                break;
+                            case "KVA":
+                                totalKva = totalKva.add(new BigDecimal(reading.getUnits()));
+                                break;
+                            case "KVAH":
+                                // KVAH units are already handled in the units field
+                                break;
+                        }
+                    }
+                }
+                
+                // Update TmpMonTot
+                tmpMonTot.setTotUntsKwo(totalUnitsKwo);
+                tmpMonTot.setTotUntsKwd(totalUnitsKwd);
+                tmpMonTot.setTotUntsKwp(totalUnitsKwp);
+                tmpMonTot.setTotKva(totalKva);
+                tmpMonTot.setTotCharge(totalCharge);
+                
+                // Recalculate total amount (total charge + fixed charge - VAT)
+                BigDecimal fixedChg = tmpMonTot.getFixedChg() != null ? tmpMonTot.getFixedChg() : BigDecimal.ZERO;
+                BigDecimal vat = tmpMonTot.getTotGst() != null ? tmpMonTot.getTotGst() : BigDecimal.ZERO;
+                BigDecimal totalAmount = totalCharge.add(fixedChg).subtract(vat);
+                tmpMonTot.setTotAmt(totalAmount.max(BigDecimal.ZERO));
+                
+                tmpMonTot.setEditedDtime(new Date());
+                tmpMonTot.setEditedUserId(userId);
+                
+                tmpMonTotRepository.save(tmpMonTot);
+            }
+        } catch (Exception e) {
+            // Log error but don't fail the entire operation
+            System.err.println("Failed to update TmpMonTot: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if date is in the future
+     */
+    private boolean isFutureDate(Date date) {
+        return date.after(new Date());
+    }
+
+    // Response creation methods for edit operations
+    private MeterReadingEditResponse createEditSuccessResponse(String message, MeterReadingInfoDetailsDTO readingInfo) {
+        MeterReadingEditResponse response = new MeterReadingEditResponse();
+        response.setSuccess(true);
+        response.setMessage(message);
+        response.setUpdatedMeterReadingInfo(readingInfo);
+        response.setTimestamp(new Date().toString());
+        return response;
+    }
+
+    private MeterReadingEditResponse createEditErrorResponse(String message) {
+        MeterReadingEditResponse response = new MeterReadingEditResponse();
+        response.setSuccess(false);
+        response.setMessage(message);
+        response.setTimestamp(new Date().toString());
+        return response;
+    }
 }

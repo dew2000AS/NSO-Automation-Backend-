@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Modifying;
 
 import java.util.Date;
 import java.util.List;
@@ -240,4 +241,15 @@ public interface TmpReadingsRepository extends JpaRepository<TmpReadings, TmpRea
     Optional<Date> findLatestReadingDateByAccNbrAndAreaCdAndBillCycle(@Param("accNbr") String accNbr, 
                                                                      @Param("areaCd") String areaCd, 
                                                                      @Param("billCycle") String billCycle);
+
+       /**
+        * Execute native update query for reading date update
+        */
+       @Modifying
+       @Query(value = "UPDATE tmp_rdngs SET rdng_date = ?1, edited_dtime = ?2, edited_user_id = ?3 " +
+                     "WHERE acc_nbr = ?4 AND area_cd = ?5 AND added_blcy = ?6 AND mtr_seq = ?7 AND rdng_date = ?8", 
+              nativeQuery = true)
+       int executeNativeUpdate(Date newRdngDate, Date editedDtime, String editedUserId,
+                            String accNbr, String areaCd, String addedBlcy, 
+                            Integer mtrSeq, Date oldRdngDate);
 }
