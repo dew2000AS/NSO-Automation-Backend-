@@ -1,5 +1,7 @@
+// MeterReadingInfoDto 
 package com.example.SPSProjectBackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -213,6 +215,62 @@ public class MeterReadingInfoDTO {
         
         @JsonProperty("meter_readings")
         private List<MeterReadingInfoDetailsDTO> meterReadings;
+        
+        @JsonProperty("timestamp")
+        private String timestamp;
+    }
+
+    // Edit
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MeterReadingEditRequest {
+        @JsonProperty("session_id")
+        private String sessionId;
+        
+        @JsonProperty("user_id")
+        private String userId;
+        
+        @JsonProperty("account_number")
+        private String accountNumber;
+        
+        @JsonProperty("area_code")
+        private String areaCode;
+        
+        @JsonProperty("bill_cycle")
+        private String billCycle;
+        
+        @JsonProperty("reading_date")
+        @JsonFormat(pattern = "yyyy-MM-dd")
+        private Date readingDate;
+        
+        @JsonProperty("meter_readings")
+        private List<MeterReadingEditDTO> meterReadings;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MeterReadingEditDTO {
+        @JsonProperty("meter_type")
+        private String meterType;
+        
+        @JsonProperty("present_reading")
+        private Integer presentReading;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MeterReadingEditResponse {
+        @JsonProperty("success")
+        private Boolean success;
+        
+        @JsonProperty("message")
+        private String message;
+        
+        @JsonProperty("updated_meter_reading_info")
+        private MeterReadingInfoDetailsDTO updatedMeterReadingInfo;
         
         @JsonProperty("timestamp")
         private String timestamp;

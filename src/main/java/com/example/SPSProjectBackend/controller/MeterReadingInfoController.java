@@ -161,4 +161,46 @@ public class MeterReadingInfoController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(responseMap);
         }
     }
+
+
+    /**
+     * Edit meter readings for a customer
+    */
+    @PutMapping(value = "/customer/edit", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> editMeterReadings(@RequestBody MeterReadingEditRequest request) {
+        Map<String, Object> responseMap = new HashMap<>();
+        
+        try {
+            MeterReadingEditResponse response = meterReadingInfoService.editMeterReadings(
+                request.getSessionId(), 
+                request.getUserId(), 
+                request.getAccountNumber(), 
+                request.getAreaCode(), 
+                request.getBillCycle(),
+                request.getReadingDate(),
+                request.getMeterReadings()
+            );
+            
+            responseMap.put("success", response.getSuccess());
+            responseMap.put("message", response.getMessage());
+            
+            if (response.getSuccess() && response.getUpdatedMeterReadingInfo() != null) {
+                responseMap.put("updated_meter_reading_info", response.getUpdatedMeterReadingInfo());
+            }
+            
+            responseMap.put("timestamp", response.getTimestamp());
+            
+            if (response.getSuccess()) {
+                return ResponseEntity.ok(responseMap);
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseMap);
+            }
+            
+        } catch (Exception e) {
+            responseMap.put("success", false);
+            responseMap.put("message", "Failed to update meter readings: " + e.getMessage());
+            responseMap.put("timestamp", new java.util.Date().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+        }
+    }
 }
