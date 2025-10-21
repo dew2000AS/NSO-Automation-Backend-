@@ -1,14 +1,19 @@
 package com.example.SPSProjectBackend.service;
 
 import com.example.SPSProjectBackend.dto.ErrorStatisticsDTO;
-import com.example.SPSProjectBackend.repository.TmpReadingsRepository;
+import com.example.SPSProjectBackend.dto.ErrorStatisticsDTO.*;
+import com.example.SPSProjectBackend.model.TmpReadings;
+import com.example.SPSProjectBackend.model.BulkCustomer;
+import com.example.SPSProjectBackend.repository.ErrorStatisticsRepository;
+import com.example.SPSProjectBackend.repository.BulkCustomerRepository;
 import com.example.SPSProjectBackend.repository.BillCycleConfigRepository;
+import com.example.SPSProjectBackend.util.SessionUtils;
+import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,296 +22,275 @@ import java.util.stream.Collectors;
 public class ErrorStatisticsService {
 
     @Autowired
-    private TmpReadingsRepository tmpReadingsRepository;
+    private ErrorStatisticsRepository errorStatisticsRepository;
+
+    @Autowired
+    private BulkCustomerRepository bulkCustomerRepository;
 
     @Autowired
     private BillCycleConfigRepository billCycleConfigRepository;
 
-    // Error type mappings
-    private static final Map<Integer, String> ERROR_TYPE_MAP = new HashMap<>();
+    @Autowired
+    private SessionUtils sessionUtils;
+
+    @Autowired
+    private HsbLocationService locationService;
+
+    // Error code to name mapping
+    private static final Map<Integer, String> ERROR_CODE_MAP = new HashMap<>();
     static {
-        ERROR_TYPE_MAP.put(1, "High Consumption");
-        ERROR_TYPE_MAP.put(2, "Low Consumption");
-        ERROR_TYPE_MAP.put(3, "Reading Error");
-        ERROR_TYPE_MAP.put(4, "Charge Error");
-        ERROR_TYPE_MAP.put(5, "Negative Error");
-        ERROR_TYPE_MAP.put(6, "Total Charge Error");
-        ERROR_TYPE_MAP.put(7, "Zero Consumption");
+        ERROR_CODE_MAP.put(1, "High Consumption");
+        ERROR_CODE_MAP.put(2, "Low Consumption");
+        ERROR_CODE_MAP.put(3, "Reading Error");
+        ERROR_CODE_MAP.put(4, "Charge Error");
+        ERROR_CODE_MAP.put(5, "Negative Error");
+        ERROR_CODE_MAP.put(6, "Total Charge Error");
+        ERROR_CODE_MAP.put(7, "Zero Consumption");
     }
 
     /**
-     * Get error statistics for a specific area
+     * Get error statistics for an area
      */
-    public ErrorStatisticsDTO.ErrorStatisticsResponse getErrorStatisticsByArea(String areaCd) {
+    public ErrorStatsResponse getErrorStatistics(String sessionId, String userId, String areaCode, String billCycle) {
         try {
-            // Get active bill cycle for the area
-            Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCd);
-            String activeBillCycle = activeBillCycleOpt.map(String::valueOf).orElse("Not Available");
+            // Validate session and access
+            validateSessionAndAccess(sessionId, userId, areaCode);
+
+            // Get active bill cycle if not provided
+            String targetBillCycle = billCycle;
+            if (targetBillCycle == null) {
+                Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCode);
+                if (!activeBillCycleOpt.isPresent()) {
+                    return createErrorStatsErrorResponse("No active bill cycle found for area: " + areaCode);
+                }
+                targetBillCycle = activeBillCycleOpt.get().toString();
+            }
+
+            // Get area name
+            String areaName = locationService.getAreaByCode(areaCode)
+                    .map(area -> area.getAreaName())
+                    .orElse("");
 
             // Get error statistics
-            List<Object[]> errorStats = tmpReadingsRepository.findErrorStatisticsByArea(areaCd);
-            
-            // Get total counts
-            Long totalAccountsWithErrors = tmpReadingsRepository.countDistinctAccountsWithErrors(areaCd);
-            Long totalErrorInstances = tmpReadingsRepository.countTotalErrorInstances(areaCd);
+            ErrorStatisticsData errorStats = calculateErrorStatistics(areaCode, targetBillCycle, areaName);
 
-            // Convert to DTO
-            List<ErrorStatisticsDTO.ErrorCount> errorCounts = convertToErrorCounts(errorStats);
-
-            return new ErrorStatisticsDTO.ErrorStatisticsResponse(
-                true,
-                "Error statistics retrieved successfully for area " + areaCd,
-                areaCd,
-                activeBillCycle,
-                totalAccountsWithErrors,
-                totalErrorInstances,
-                errorCounts,
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
+            return createErrorStatsSuccessResponse("Error statistics retrieved successfully", errorStats);
 
         } catch (Exception e) {
-            return new ErrorStatisticsDTO.ErrorStatisticsResponse(
-                false,
-                "Failed to retrieve error statistics: " + e.getMessage(),
-                areaCd,
-                "Error",
-                0L,
-                0L,
-                new ArrayList<>(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
+            return createErrorStatsErrorResponse("Failed to retrieve error statistics: " + e.getMessage());
         }
     }
 
     /**
-     * Get error statistics for all areas (Admin view)
+     * Get detailed accounts for a specific error code
      */
-    public ErrorStatisticsDTO.ErrorStatisticsResponse getErrorStatisticsAllAreas() {
+    public ErrorDetailsResponse getErrorDetails(String sessionId, String userId, String areaCode, 
+                                               String billCycle, Integer errorCode) {
         try {
-            // Get error statistics for all areas
-            List<Object[]> errorStats = tmpReadingsRepository.findErrorStatisticsAllAreas();
+            // Validate session and access
+            validateSessionAndAccess(sessionId, userId, areaCode);
 
-            // Convert to DTO
-            List<ErrorStatisticsDTO.ErrorCount> errorCounts = convertToErrorCounts(errorStats);
-
-            // Calculate totals
-            Long totalAccountsWithErrors = errorCounts.stream()
-                .mapToLong(ErrorStatisticsDTO.ErrorCount::getAccountCount)
-                .sum();
-            Long totalErrorInstances = errorCounts.stream()
-                .mapToLong(ErrorStatisticsDTO.ErrorCount::getTotalErrors)
-                .sum();
-
-            return new ErrorStatisticsDTO.ErrorStatisticsResponse(
-                true,
-                "Error statistics retrieved successfully for all areas",
-                "ALL",
-                "Multiple",
-                totalAccountsWithErrors,
-                totalErrorInstances,
-                errorCounts,
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
-
-        } catch (Exception e) {
-            return new ErrorStatisticsDTO.ErrorStatisticsResponse(
-                false,
-                "Failed to retrieve error statistics: " + e.getMessage(),
-                "ALL",
-                "Error",
-                0L,
-                0L,
-                new ArrayList<>(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
-        }
-    }
-
-    /**
-     * Get detailed account information for a specific error type in an area
-     */
-    public ErrorStatisticsDTO.ErrorDetailsResponse getErrorDetailsByAreaAndType(String areaCd, Integer errorCode) {
-        try {
-            String errorType = ERROR_TYPE_MAP.getOrDefault(errorCode, "Unknown Error");
-
-            // Get account details for the error type
-            List<Object[]> accountData = tmpReadingsRepository.findAccountsByErrorType(areaCd, errorCode);
-
-            // Group by account number to consolidate meter types
-            Map<String, ErrorStatisticsDTO.ErrorDetails> accountMap = new LinkedHashMap<>();
-            
-            for (Object[] data : accountData) {
-                String accNbr = (String) data[0];
-                String mtrType = (String) data[1];
-                Date rdngDate = (Date) data[2];
-
-                if (!accountMap.containsKey(accNbr)) {
-                    ErrorStatisticsDTO.ErrorDetails details = new ErrorStatisticsDTO.ErrorDetails();
-                    details.setAccountNumber(accNbr);
-                    details.setErrorCode(errorCode);
-                    details.setErrorType(errorType);
-                    details.setMeterTypes(new ArrayList<>());
-                    details.setReadingDate(rdngDate.toString());
-                    accountMap.put(accNbr, details);
-                }
-
-                // Add meter type to the existing account
-                ErrorStatisticsDTO.ErrorDetails details = accountMap.get(accNbr);
-                details.getMeterTypes().add(mtrType);
-                details.setTotalMetersWithError(details.getMeterTypes().size());
+            // Validate error code
+            if (!ERROR_CODE_MAP.containsKey(errorCode)) {
+                return createErrorDetailsErrorResponse("Invalid error code: " + errorCode);
             }
 
-            List<ErrorStatisticsDTO.ErrorDetails> accountDetails = new ArrayList<>(accountMap.values());
-
-            return new ErrorStatisticsDTO.ErrorDetailsResponse(
-                true,
-                "Error details retrieved successfully for " + errorType,
-                errorCode,
-                errorType,
-                (long) accountDetails.size(),
-                accountDetails,
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
-
-        } catch (Exception e) {
-            return new ErrorStatisticsDTO.ErrorDetailsResponse(
-                false,
-                "Failed to retrieve error details: " + e.getMessage(),
-                errorCode,
-                ERROR_TYPE_MAP.getOrDefault(errorCode, "Unknown Error"),
-                0L,
-                new ArrayList<>(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
-        }
-    }
-
-    /**
-     * Get detailed account information for a specific error type across all areas (Admin view)
-     */
-    public ErrorStatisticsDTO.ErrorDetailsResponse getErrorDetailsAllAreas(Integer errorCode) {
-        try {
-            String errorType = ERROR_TYPE_MAP.getOrDefault(errorCode, "Unknown Error");
-
-            // Get account details for the error type across all areas
-            List<Object[]> accountData = tmpReadingsRepository.findAccountsByErrorTypeAllAreas(errorCode);
-
-            // Group by account number and area to consolidate meter types
-            Map<String, ErrorStatisticsDTO.ErrorDetails> accountMap = new LinkedHashMap<>();
-            
-            for (Object[] data : accountData) {
-                String accNbr = (String) data[0];
-                String areaCd = (String) data[1];
-                String mtrType = (String) data[2];
-                Date rdngDate = (Date) data[3];
-
-                String accountKey = accNbr + "|" + areaCd;
-
-                if (!accountMap.containsKey(accountKey)) {
-                    ErrorStatisticsDTO.ErrorDetails details = new ErrorStatisticsDTO.ErrorDetails();
-                    details.setAccountNumber(accNbr + " (" + areaCd + ")");
-                    details.setErrorCode(errorCode);
-                    details.setErrorType(errorType);
-                    details.setMeterTypes(new ArrayList<>());
-                    details.setReadingDate(rdngDate.toString());
-                    accountMap.put(accountKey, details);
+            // Get active bill cycle if not provided
+            String targetBillCycle = billCycle;
+            if (targetBillCycle == null) {
+                Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCode);
+                if (!activeBillCycleOpt.isPresent()) {
+                    return createErrorDetailsErrorResponse("No active bill cycle found for area: " + areaCode);
                 }
-
-                // Add meter type to the existing account
-                ErrorStatisticsDTO.ErrorDetails details = accountMap.get(accountKey);
-                details.getMeterTypes().add(mtrType);
-                details.setTotalMetersWithError(details.getMeterTypes().size());
+                targetBillCycle = activeBillCycleOpt.get().toString();
             }
 
-            List<ErrorStatisticsDTO.ErrorDetails> accountDetails = new ArrayList<>(accountMap.values());
+            // Get error instances for the specific error code
+            List<TmpReadings> errorInstances = errorStatisticsRepository.findErrorInstancesByErrorCode(
+                    areaCode, targetBillCycle, errorCode);
 
-            return new ErrorStatisticsDTO.ErrorDetailsResponse(
-                true,
-                "Error details retrieved successfully for " + errorType + " across all areas",
-                errorCode,
-                errorType,
-                (long) accountDetails.size(),
-                accountDetails,
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            // Group by account number
+            Map<String, List<TmpReadings>> instancesByAccount = errorInstances.stream()
+                    .collect(Collectors.groupingBy(TmpReadings::getAccNbr));
+
+            // Create account error details
+            List<AccountErrorDetailsDTO> accountDetails = new ArrayList<>();
+            for (Map.Entry<String, List<TmpReadings>> entry : instancesByAccount.entrySet()) {
+                String accountNumber = entry.getKey();
+                List<TmpReadings> accountInstances = entry.getValue();
+
+                // Get customer name
+                String customerName = bulkCustomerRepository.findByAccNbr(accountNumber)
+                        .map(BulkCustomer::getName)
+                        .orElse("");
+
+                // Convert to error instance DTOs
+                List<ErrorInstanceDTO> errorInstanceDTOs = accountInstances.stream()
+                        .map(this::convertToErrorInstanceDTO)
+                        .collect(Collectors.toList());
+
+                AccountErrorDetailsDTO accountDetail = new AccountErrorDetailsDTO();
+                accountDetail.setAccountNumber(accountNumber);
+                accountDetail.setCustomerName(customerName);
+                accountDetail.setAreaCode(areaCode);
+                accountDetail.setErrorInstances(errorInstanceDTOs);
+                accountDetail.setTotalErrorInstances(errorInstanceDTOs.size());
+
+                accountDetails.add(accountDetail);
+            }
+
+            // Sort by account number
+            accountDetails.sort(Comparator.comparing(AccountErrorDetailsDTO::getAccountNumber));
+
+            return createErrorDetailsSuccessResponse(
+                    errorCode,
+                    ERROR_CODE_MAP.get(errorCode), 
+                    accountDetails, 
+                    "Error details retrieved successfully"
             );
 
         } catch (Exception e) {
-            return new ErrorStatisticsDTO.ErrorDetailsResponse(
-                false,
-                "Failed to retrieve error details: " + e.getMessage(),
-                errorCode,
-                ERROR_TYPE_MAP.getOrDefault(errorCode, "Unknown Error"),
-                0L,
-                new ArrayList<>(),
-                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            );
+            return createErrorDetailsErrorResponse("Failed to retrieve error details: " + e.getMessage());
         }
     }
 
     /**
-     * Helper method to convert query results to ErrorCount DTOs
+     * Calculate error statistics for an area and bill cycle
      */
-    private List<ErrorStatisticsDTO.ErrorCount> convertToErrorCounts(List<Object[]> errorStats) {
-        List<ErrorStatisticsDTO.ErrorCount> errorCounts = new ArrayList<>();
+    private ErrorStatisticsData calculateErrorStatistics(String areaCode, String billCycle, String areaName) {
+        ErrorStatisticsData errorStats = new ErrorStatisticsData();
+        errorStats.setAreaCode(areaCode);
+        errorStats.setAreaName(areaName);
+        errorStats.setActiveBillCycle(billCycle);
 
-        // Initialize with all error types (1-7)
-        for (int i = 1; i <= 7; i++) {
-            errorCounts.add(new ErrorStatisticsDTO.ErrorCount(
-                ERROR_TYPE_MAP.get(i),
-                i,
-                0L,
-                0L,
-                getErrorDescription(i)
-            ));
-        }
+        // Get error statistics grouped by error code
+        List<Object[]> errorStatsData = errorStatisticsRepository.findErrorStatisticsByAreaAndBillCycle(areaCode, billCycle);
+        
+        // Get total error instances count
+        Long totalErrorInstances = errorStatisticsRepository.countTotalErrorInstances(areaCode, billCycle);
+        errorStats.setTotalErrorInstances(totalErrorInstances.intValue());
 
-        // Update with actual data from database
-        for (Object[] stat : errorStats) {
-            Integer errStat = (Integer) stat[0];
+        // Get unread accounts count
+        Long unreadAccounts = errorStatisticsRepository.countUnreadAccounts(areaCode, billCycle);
+        errorStats.setUnreadAccountsCount(unreadAccounts.intValue());
+
+        // Get total accounts in area
+        Long totalAccounts = errorStatisticsRepository.countTotalAccountsInArea(areaCode);
+        errorStats.setTotalAccountsInArea(totalAccounts.intValue());
+
+        // Calculate error counts
+        Map<String, ErrorCountDTO> errorCounts = new LinkedHashMap<>();
+        
+        int totalAccountsWithErrors = 0;
+
+        // Add counts for each error code
+        for (Object[] stat : errorStatsData) {
+            Integer errorCode = (Integer) stat[0];
             Long accountCount = (Long) stat[1];
-            Long totalErrors = (Long) stat[2];
+            
+            totalAccountsWithErrors += accountCount.intValue();
 
-            // Find and update the corresponding error count
-            errorCounts.stream()
-                .filter(ec -> ec.getErrorCode().equals(errStat))
-                .findFirst()
-                .ifPresent(ec -> {
-                    ec.setAccountCount(accountCount);
-                    ec.setTotalErrors(totalErrors);
-                });
+            ErrorCountDTO errorCount = new ErrorCountDTO();
+            errorCount.setErrorCode(errorCode);
+            errorCount.setErrorName(ERROR_CODE_MAP.getOrDefault(errorCode, "Unknown Error"));
+            errorCount.setAccountCount(accountCount.intValue());
+            
+            // Get instance count for this error code
+            List<TmpReadings> instances = errorStatisticsRepository.findErrorInstancesByErrorCode(areaCode, billCycle, errorCode);
+            errorCount.setInstanceCount(instances.size());
+            
+            // Calculate percentage
+            double percentage = totalAccounts > 0 ? (accountCount.doubleValue() / totalAccounts) * 100.0 : 0.0;
+            errorCount.setPercentage(Math.round(percentage * 100.0) / 100.0);
+
+            errorCounts.put(errorCode.toString(), errorCount);
         }
 
-        return errorCounts;
+        errorStats.setTotalAccountsWithErrors(totalAccountsWithErrors);
+        errorStats.setErrorCounts(errorCounts);
+
+        // Calculate overall error percentage
+        double errorPercentage = totalAccounts > 0 ? 
+                (double) totalAccountsWithErrors / totalAccounts * 100.0 : 0.0;
+        errorStats.setErrorPercentage(Math.round(errorPercentage * 100.0) / 100.0);
+
+        return errorStats;
     }
 
     /**
-     * Get description for each error type
+     * Convert TmpReadings to ErrorInstanceDTO
      */
-    private String getErrorDescription(Integer errorCode) {
-        switch (errorCode) {
-            case 1: return "Monthly consumption exceeds 15% of the account's usage Average.";
-            case 2: return "Monthly consumption falls below 20% of the account's usage Average.";
-            case 3: return "Consumed units do not match the difference between Current and Previous meter readings.";
-            case 4: return "Computed charge (Units × Multiplier Factor × Rate) per meter, not equal to Amount.";
-            case 5: return "Current meter reading is lower than Previous reading, gives negative Unit consumption.";
-            case 6: return "Sum of Individual Meter Charges, Fixed Charge, and VAT does not match the Total Amount.";
-            case 7: return "Zero unit consumption gives for difference between Current and Previous meter readings.";
-            default: return "Unknown error type";
-        }
+    private ErrorInstanceDTO convertToErrorInstanceDTO(TmpReadings reading) {
+        ErrorInstanceDTO dto = new ErrorInstanceDTO();
+        dto.setMeterType(reading.getMtrType());
+        dto.setErrorCode(reading.getErrStat());
+        dto.setErrorName(ERROR_CODE_MAP.getOrDefault(reading.getErrStat(), "Unknown Error"));
+        dto.setReadingDate(reading.getRdngDate() != null ? reading.getRdngDate().toString() : "");
+        dto.setPresentReading(reading.getPrsntRdn());
+        dto.setPreviousReading(reading.getPrvRdn());
+        dto.setUnits(reading.getUnits());
+        return dto;
     }
 
     /**
-     * Get available error types with codes and descriptions
+     * Validate session and access rights
      */
-    public Map<String, Object> getErrorTypes() {
-        Map<String, Object> errorTypes = new LinkedHashMap<>();
-        for (int i = 1; i <= 7; i++) {
-            Map<String, Object> errorInfo = new HashMap<>();
-            errorInfo.put("code", i);
-            errorInfo.put("name", ERROR_TYPE_MAP.get(i));
-            errorInfo.put("description", getErrorDescription(i));
-            errorTypes.put(ERROR_TYPE_MAP.get(i), errorInfo);
+    private void validateSessionAndAccess(String sessionId, String userId, String areaCode) {
+        if (sessionId == null || userId == null) {
+            throw new RuntimeException("Session ID and User ID are required");
         }
-        return errorTypes;
+
+        Optional<SecInfoLoginDTO.UserInfo> userInfoOpt = sessionUtils.getUserLocationFromSession(sessionId, userId);
+        if (!userInfoOpt.isPresent()) {
+            throw new RuntimeException("Invalid session or user not found");
+        }
+
+        // Check access to area
+        SecInfoLoginDTO.UserInfo userInfo = userInfoOpt.get();
+        boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, 
+                userInfo.getRegionCode(), userInfo.getProvinceCode(), areaCode);
+        if (!hasAccess) {
+            throw new RuntimeException("Access denied to area: " + areaCode);
+        }
+    }
+
+    // Response creation methods
+    private ErrorStatsResponse createErrorStatsSuccessResponse(String message, ErrorStatisticsData errorStats) {
+        ErrorStatsResponse response = new ErrorStatsResponse();
+        response.setSuccess(true);
+        response.setMessage(message);
+        response.setErrorStatistics(errorStats);
+        response.setTimestamp(LocalDateTime.now());
+        return response;
+    }
+
+    private ErrorStatsResponse createErrorStatsErrorResponse(String message) {
+        ErrorStatsResponse response = new ErrorStatsResponse();
+        response.setSuccess(false);
+        response.setMessage(message);
+        response.setTimestamp(LocalDateTime.now());
+        return response;
+    }
+
+    private ErrorDetailsResponse createErrorDetailsSuccessResponse(Integer errorCode, String errorName, 
+                                                                 List<AccountErrorDetailsDTO> accounts, 
+                                                                 String message) {
+        ErrorDetailsResponse response = new ErrorDetailsResponse();
+        response.setSuccess(true);
+        response.setMessage(message);
+        response.setErrorCode(errorCode);
+        response.setErrorName(errorName);
+        response.setAccountsWithError(accounts);
+        response.setTotalAccounts(accounts.size());
+        response.setTimestamp(LocalDateTime.now());
+        return response;
+    }
+
+    private ErrorDetailsResponse createErrorDetailsErrorResponse(String message) {
+        ErrorDetailsResponse response = new ErrorDetailsResponse();
+        response.setSuccess(false);
+        response.setMessage(message);
+        response.setTimestamp(LocalDateTime.now());
+        return response;
     }
 }

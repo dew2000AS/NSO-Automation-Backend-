@@ -1,15 +1,15 @@
 package com.example.SPSProjectBackend.controller;
 
 import com.example.SPSProjectBackend.dto.ErrorStatisticsDTO;
+import com.example.SPSProjectBackend.dto.ErrorStatisticsDTO.*;
 import com.example.SPSProjectBackend.service.ErrorStatisticsService;
-import com.example.SPSProjectBackend.service.SecInfoAuthService;
-import com.example.SPSProjectBackend.util.SessionUtils;
-import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,206 +21,242 @@ public class ErrorStatisticsController {
     @Autowired
     private ErrorStatisticsService errorStatisticsService;
 
-    @Autowired
-    private SecInfoAuthService secInfoAuthService;
-
-    @Autowired
-    private SessionUtils sessionUtils;
-
     /**
-     * Get error statistics for bar chart for a specific area
+     * Get error statistics for an area
      */
-    @GetMapping("/area/{areaCd}")
-    public ResponseEntity<?> getErrorStatisticsByArea(
-            @PathVariable String areaCd,
-            @RequestParam(required = false) String session_id,
-            @RequestParam(required = false) String user_id) {
+    @PostMapping(value = "/area-statistics", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getErrorStatistics(@RequestBody Map<String, Object> request) {
+        Map<String, Object> responseMap = new HashMap<>();
         
         try {
-            // Validate session and access
-            if (session_id != null && user_id != null) {
-                validateSessionAndAccess(session_id, user_id, null, null, areaCd);
+            String sessionId = (String) request.get("session_id");
+            String userId = (String) request.get("user_id");
+            String areaCode = (String) request.get("area_code");
+            String billCycle = (String) request.get("bill_cycle");
+            
+            // Validate required parameters
+            if (sessionId == null || sessionId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Session ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
+            }
+            
+            if (userId == null || userId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "User ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
             }
 
-            ErrorStatisticsDTO.ErrorStatisticsResponse response = 
-                errorStatisticsService.getErrorStatisticsByArea(areaCd);
+            if (areaCode == null || areaCode.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Area code is required");
+                return ResponseEntity.badRequest().body(responseMap);
+            }
+
+            ErrorStatsResponse response = errorStatisticsService.getErrorStatistics(
+                sessionId, userId, areaCode, billCycle);
+            
+            responseMap.put("success", response.getSuccess());
+            responseMap.put("message", response.getMessage());
+            responseMap.put("error_statistics", response.getErrorStatistics());
+            responseMap.put("timestamp", response.getTimestamp() != null ? response.getTimestamp().toString() : LocalDateTime.now().toString());
             
             if (response.getSuccess()) {
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(responseMap);
             } else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseMap);
             }
-
+            
         } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve error statistics: " + e.getMessage());
-            errorResponse.put("area_code", areaCd);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            responseMap.put("success", false);
+            responseMap.put("message", "Failed to retrieve error statistics: " + e.getMessage());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
 
     /**
-     * Get error statistics for bar chart for all areas (Admin view)
+     * Get detailed accounts for a specific error code
      */
-    @GetMapping("/all-areas")
-    public ResponseEntity<?> getErrorStatisticsAllAreas(
-            @RequestParam(required = false) String session_id,
-            @RequestParam(required = false) String user_id) {
+    @PostMapping(value = "/error-details", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getErrorDetails(@RequestBody Map<String, Object> request) {
+        Map<String, Object> responseMap = new HashMap<>();
         
         try {
-            // Validate session (Admin access required)
-            if (session_id != null && user_id != null) {
-                validateSessionAndAccess(session_id, user_id, null, null, null);
+            String sessionId = (String) request.get("session_id");
+            String userId = (String) request.get("user_id");
+            String areaCode = (String) request.get("area_code");
+            String billCycle = (String) request.get("bill_cycle");
+            Integer errorCode = (Integer) request.get("error_code");
+            
+            // Validate required parameters
+            if (sessionId == null || sessionId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Session ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
+            }
+            
+            if (userId == null || userId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "User ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
             }
 
-            ErrorStatisticsDTO.ErrorStatisticsResponse response = 
-                errorStatisticsService.getErrorStatisticsAllAreas();
+            if (areaCode == null || areaCode.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Area code is required");
+                return ResponseEntity.badRequest().body(responseMap);
+            }
+
+            if (errorCode == null) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Error code is required");
+                return ResponseEntity.badRequest().body(responseMap);
+            }
+
+            ErrorDetailsResponse response = errorStatisticsService.getErrorDetails(
+                sessionId, userId, areaCode, billCycle, errorCode);
+            
+            responseMap.put("success", response.getSuccess());
+            responseMap.put("message", response.getMessage());
+            responseMap.put("error_code", response.getErrorCode());
+            responseMap.put("error_name", response.getErrorName());
+            responseMap.put("accounts_with_error", response.getAccountsWithError());
+            responseMap.put("total_accounts", response.getTotalAccounts());
+            responseMap.put("timestamp", response.getTimestamp() != null ? response.getTimestamp().toString() : LocalDateTime.now().toString());
             
             if (response.getSuccess()) {
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(responseMap);
             } else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseMap);
             }
-
+            
         } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve error statistics: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            responseMap.put("success", false);
+            responseMap.put("message", "Failed to retrieve error details: " + e.getMessage());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
 
     /**
-     * Get detailed account information for a specific error type in an area
+     * Get error statistics summary for multiple areas (for regional/provincial users)
      */
-    @GetMapping("/area/{areaCd}/error/{errorCode}")
-    public ResponseEntity<?> getErrorDetailsByAreaAndType(
-            @PathVariable String areaCd,
-            @PathVariable Integer errorCode,
-            @RequestParam(required = false) String session_id,
-            @RequestParam(required = false) String user_id) {
+    @PostMapping(value = "/bulk-statistics", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getBulkErrorStatistics(@RequestBody Map<String, Object> request) {
+        Map<String, Object> responseMap = new HashMap<>();
         
         try {
-            // Validate session and access
-            if (session_id != null && user_id != null) {
-                validateSessionAndAccess(session_id, user_id, null, null, areaCd);
-            }
-
-            // Validate error code
-            if (errorCode < 1 || errorCode > 7) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "Invalid error code. Must be between 1 and 7.");
-                errorResponse.put("error_code", errorCode);
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-
-            ErrorStatisticsDTO.ErrorDetailsResponse response = 
-                errorStatisticsService.getErrorDetailsByAreaAndType(areaCd, errorCode);
+            String sessionId = (String) request.get("session_id");
+            String userId = (String) request.get("user_id");
+            @SuppressWarnings("unchecked")
+            java.util.List<String> areaCodes = (java.util.List<String>) request.get("area_codes");
             
-            if (response.getSuccess()) {
-                return ResponseEntity.ok(response);
-            } else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            // Validate required parameters
+            if (sessionId == null || sessionId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Session ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
             }
-
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve error details: " + e.getMessage());
-            errorResponse.put("area_code", areaCd);
-            errorResponse.put("error_code", errorCode);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    /**
-     * Get detailed account information for a specific error type across all areas (Admin view)
-     */
-    @GetMapping("/all-areas/error/{errorCode}")
-    public ResponseEntity<?> getErrorDetailsAllAreas(
-            @PathVariable Integer errorCode,
-            @RequestParam(required = false) String session_id,
-            @RequestParam(required = false) String user_id) {
-        
-        try {
-            // Validate session (Admin access required)
-            if (session_id != null && user_id != null) {
-                validateSessionAndAccess(session_id, user_id, null, null, null);
-            }
-
-            // Validate error code
-            if (errorCode < 1 || errorCode > 7) {
-                Map<String, Object> errorResponse = new HashMap<>();
-                errorResponse.put("success", false);
-                errorResponse.put("message", "Invalid error code. Must be between 1 and 7.");
-                errorResponse.put("error_code", errorCode);
-                return ResponseEntity.badRequest().body(errorResponse);
-            }
-
-            ErrorStatisticsDTO.ErrorDetailsResponse response = 
-                errorStatisticsService.getErrorDetailsAllAreas(errorCode);
             
-            if (response.getSuccess()) {
-                return ResponseEntity.ok(response);
-            } else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            if (userId == null || userId.trim().isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "User ID is required");
+                return ResponseEntity.badRequest().body(responseMap);
             }
 
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve error details: " + e.getMessage());
-            errorResponse.put("error_code", errorCode);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    /**
-     * Get available error types with descriptions
-     */
-    @GetMapping("/error-types")
-    public ResponseEntity<?> getErrorTypes() {
-        try {
-            Map<String, Object> errorTypes = errorStatisticsService.getErrorTypes();
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Error types retrieved successfully");
-            response.put("error_types", errorTypes);
-            
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to retrieve error types: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
-    }
-
-    /**
-     * Helper method to validate session and access
-     */
-    private void validateSessionAndAccess(String sessionId, String userId, String targetRegionCode, String targetProvinceCode, String targetAreaCode) {
-        if (sessionId != null && userId != null) {
-            // Validate session
-            SecInfoLoginDTO.SessionValidationRequest validationRequest = new SecInfoLoginDTO.SessionValidationRequest();
-            validationRequest.setSessionId(sessionId);
-            validationRequest.setUserId(userId);
-            SecInfoLoginDTO.SessionValidationResponse validationResponse = secInfoAuthService.validateSession(validationRequest);
-            if (!validationResponse.getValid()) {
-                throw new RuntimeException("Invalid or expired session");
+            if (areaCodes == null || areaCodes.isEmpty()) {
+                responseMap.put("success", false);
+                responseMap.put("message", "Area codes are required");
+                return ResponseEntity.badRequest().body(responseMap);
             }
 
-            // If area-specific, validate access
-            if (targetAreaCode != null) {
-                boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, targetRegionCode, targetProvinceCode, targetAreaCode);
-                if (!hasAccess) {
-                    throw new RuntimeException("Access denied to area " + targetAreaCode);
+            // Get statistics for each area
+            java.util.List<ErrorStatisticsData> allStatistics = new java.util.ArrayList<>();
+            int totalAreasProcessed = 0;
+            
+            for (String areaCode : areaCodes) {
+                try {
+                    ErrorStatsResponse response = errorStatisticsService.getErrorStatistics(
+                        sessionId, userId, areaCode, null);
+                    
+                    if (response.getSuccess() && response.getErrorStatistics() != null) {
+                        allStatistics.add(response.getErrorStatistics());
+                        totalAreasProcessed++;
+                    }
+                } catch (Exception e) {
+                    // Log error but continue with other areas
+                    System.err.println("Failed to get error statistics for area " + areaCode + ": " + e.getMessage());
                 }
             }
+
+            responseMap.put("success", true);
+            responseMap.put("message", "Bulk error statistics retrieved successfully");
+            responseMap.put("area_statistics", allStatistics);
+            responseMap.put("total_areas_processed", totalAreasProcessed);
+            responseMap.put("total_areas_requested", areaCodes.size());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(responseMap);
+            
+        } catch (Exception e) {
+            responseMap.put("success", false);
+            responseMap.put("message", "Failed to retrieve bulk error statistics: " + e.getMessage());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+        }
+    }
+
+    /**
+     * Health check endpoint
+     */
+    @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> checkHealth() {
+        Map<String, Object> responseMap = new HashMap<>();
+        
+        try {
+            responseMap.put("status", "healthy");
+            responseMap.put("message", "Error statistics service is operational");
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.ok(responseMap);
+            
+        } catch (Exception e) {
+            responseMap.put("status", "unhealthy");
+            responseMap.put("message", "Error statistics service has issues: " + e.getMessage());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(responseMap);
+        }
+    }
+
+    /**
+     * Get error code mapping (for frontend reference)
+     */
+    @GetMapping(value = "/error-codes", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> getErrorCodes() {
+        Map<String, Object> responseMap = new HashMap<>();
+        
+        try {
+            Map<String, String> errorCodes = new HashMap<>();
+            errorCodes.put("1", "High Consumption");
+            errorCodes.put("2", "Low Consumption");
+            errorCodes.put("3", "Reading Error");
+            errorCodes.put("4", "Charge Error");
+            errorCodes.put("5", "Negative Error");
+            errorCodes.put("6", "Total Charge Error");
+            errorCodes.put("7", "Zero Consumption");
+            
+            responseMap.put("success", true);
+            responseMap.put("message", "Error codes retrieved successfully");
+            responseMap.put("error_codes", errorCodes);
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(responseMap);
+            
+        } catch (Exception e) {
+            responseMap.put("success", false);
+            responseMap.put("message", "Failed to retrieve error codes: " + e.getMessage());
+            responseMap.put("timestamp", LocalDateTime.now().toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
 }
