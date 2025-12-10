@@ -201,10 +201,4 @@ public class BulkCustomerDTO {
     
     @JsonProperty("cat_code")
     private String catCode;
-    
-    @JsonProperty("cnnct_type")
-    private Integer cnnctType;
-    
-    @JsonProperty("bess")
-    private Integer bess;
 }

@@ -1,4 +1,3 @@
-// Modified: com/example/SPSProjectBackend/controller/TmpReadingsController.java
 package com.example.SPSProjectBackend.controller;
 
 import com.example.SPSProjectBackend.dto.TmpReadingsDTO;
@@ -171,7 +170,7 @@ public class TmpReadingsController {
         }
     }
 
-    // Get readings by area code with active bill cycle filter (default behavior)
+    // Get readings by area code with active bill cycle filter - FIXED WITH DEBUG LOGGING
     @GetMapping("/area/{areaCd}")
     public ResponseEntity<?> getReadingsByAreaCd(
             @PathVariable String areaCd,
@@ -179,6 +178,8 @@ public class TmpReadingsController {
             @RequestParam(required = false) String user_id,
             @RequestParam(required = false, defaultValue = "false") boolean include_all_cycles) {
         try {
+            System.out.println("DEBUG: API called for area " + areaCd + ", include_all_cycles=" + include_all_cycles);
+            
             validateSessionAndAccess(session_id, user_id, null, null, areaCd);
             
             List<TmpReadingsDTO> readings;
@@ -194,6 +195,13 @@ public class TmpReadingsController {
                 // Add active bill cycle information
                 Optional<Integer> activeBillCycle = tmpReadingsService.getActiveBillCycleForArea(areaCd);
                 response.put("active_bill_cycle", activeBillCycle.orElse(null));
+                
+                System.out.println("DEBUG: Active bill cycle for area " + areaCd + " = " + activeBillCycle.orElse(null));
+                
+                // Add warning if no active bill cycle
+                if (!activeBillCycle.isPresent()) {
+                    response.put("warning", "No active bill cycle found for area " + areaCd);
+                }
             }
             
             response.put("area_code", areaCd);
@@ -201,15 +209,21 @@ public class TmpReadingsController {
             response.put("filtered_by_active_bill_cycle", !include_all_cycles);
             response.put("readings", readings);
             
+            System.out.println("DEBUG: Returning " + readings.size() + " readings for area " + areaCd);
+            
             return ResponseEntity.ok(response);
+            
         } catch (Exception e) {
+            System.err.println("ERROR in getReadingsByAreaCd for area " + areaCd + ": " + e.getMessage());
+            e.printStackTrace();
+            
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to retrieve readings by area code");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
-    
+
     // Get readings by area code and specific bill cycle (for historical data)
     @GetMapping("/area/{areaCd}/bill-cycle/{billCycle}")
     public ResponseEntity<?> getReadingsByAreaCdAndBillCycle(

@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### COPY Easy ###
+Export-HSBFiles.ps1
+HSB_Collected_Files.txt

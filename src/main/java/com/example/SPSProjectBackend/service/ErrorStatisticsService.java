@@ -9,6 +9,7 @@ import com.example.SPSProjectBackend.repository.BulkCustomerRepository;
 import com.example.SPSProjectBackend.repository.BillCycleConfigRepository;
 import com.example.SPSProjectBackend.util.SessionUtils;
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
+import com.example.SPSProjectBackend.dto.HsbAreaDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +54,7 @@ public class ErrorStatisticsService {
      */
     public ErrorStatsResponse getErrorStatistics(String sessionId, String userId, String areaCode, String billCycle) {
         try {
-            // Validate session and access
+            // Validate session and access - UPDATED METHOD
             validateSessionAndAccess(sessionId, userId, areaCode);
 
             // Get active bill cycle if not provided
@@ -87,7 +88,7 @@ public class ErrorStatisticsService {
     public ErrorDetailsResponse getErrorDetails(String sessionId, String userId, String areaCode, 
                                                String billCycle, Integer errorCode) {
         try {
-            // Validate session and access
+            // Validate session and access - UPDATED METHOD
             validateSessionAndAccess(sessionId, userId, areaCode);
 
             // Validate error code
@@ -233,10 +234,10 @@ public class ErrorStatisticsService {
     }
 
     /**
-     * Validate session and access rights
+     * UPDATED: Validate session and access rights
      */
     private void validateSessionAndAccess(String sessionId, String userId, String areaCode) {
-        if (sessionId == null || userId == null) {
+        if (sessionId == null || userId == null || sessionId.isEmpty() || userId.isEmpty()) {
             throw new RuntimeException("Session ID and User ID are required");
         }
 
@@ -245,12 +246,53 @@ public class ErrorStatisticsService {
             throw new RuntimeException("Invalid session or user not found");
         }
 
-        // Check access to area
+        // NEW: Use improved access logic
         SecInfoLoginDTO.UserInfo userInfo = userInfoOpt.get();
-        boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, 
-                userInfo.getRegionCode(), userInfo.getProvinceCode(), areaCode);
+        boolean hasAccess = hasAreaAccessBasedOnUserCategory(userInfo, areaCode);
+        
         if (!hasAccess) {
             throw new RuntimeException("Access denied to area: " + areaCode);
+        }
+    }
+
+    // NEW: Add this helper method to ErrorStatisticsService
+    private boolean hasAreaAccessBasedOnUserCategory(SecInfoLoginDTO.UserInfo userInfo, String targetAreaCode) {
+        // First, get the target area's region and province
+        Optional<HsbAreaDTO> targetAreaOpt = locationService.getAreaByCode(targetAreaCode);
+        if (targetAreaOpt.isEmpty()) {
+            return false;
+        }
+        
+        HsbAreaDTO targetArea = targetAreaOpt.get();
+        String userCategory = userInfo.getUserCategory();
+        
+        if (userCategory == null) {
+            return false;
+        }
+        
+        switch (userCategory) {
+            case "Admin":
+                return true; // Admin has access to all areas
+                
+            case "Region User":
+                // Region users can access all areas in their region
+                return targetArea.getRegion() != null && 
+                       targetArea.getRegion().equals(userInfo.getRegionCode());
+                
+            case "Province User":
+                // Province users can access all areas in their province
+                return targetArea.getRegion() != null && 
+                       targetArea.getRegion().equals(userInfo.getRegionCode()) &&
+                       targetArea.getProvCode() != null && 
+                       targetArea.getProvCode().equals(userInfo.getProvinceCode());
+                
+            case "Area User":
+                // Area users can only access their specific area
+                return targetAreaCode != null && 
+                       targetAreaCode.equals(userInfo.getAreaCode());
+                
+            default:
+                return false;
         }
     }
 

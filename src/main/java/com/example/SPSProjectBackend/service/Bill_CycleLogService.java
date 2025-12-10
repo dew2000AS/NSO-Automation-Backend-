@@ -38,7 +38,7 @@ public class Bill_CycleLogService {
     private static final String DEFAULT_END_TIME = "0:00:00";
 
     /**
-     * Create a new log file entry
+     * Create a new log file entry - USING TRIMMED VERSIONS
      */
     @Transactional
     public Bill_CycleLogDTO.LogFileResponse createLogEntry(Bill_CycleLogDTO.LogFileEntryRequest request) {
@@ -63,9 +63,9 @@ public class Bill_CycleLogService {
                 return createErrorResponse(validationError);
             }
 
-            // Get active bill cycle for the area
+            // Get active bill cycle for the area - USING TRIMMED VERSION
             Optional<Integer> activeBillCycleOpt = billCycleConfigRepository
-                .findMaxActiveBillCycleNumberByAreaCode(request.getAreaCode());
+                .findMaxActiveBillCycleNumberByAreaCodeTrimmed(request.getAreaCode());
             
             if (!activeBillCycleOpt.isPresent()) {
                 return createErrorResponse("No active bill cycle found for area " + request.getAreaCode());
@@ -73,7 +73,7 @@ public class Bill_CycleLogService {
 
             Integer activeBillCycle = activeBillCycleOpt.get();
 
-            // Check if the area can accept new log entries
+            // Check if the area can accept new log entries - USING TRIMMED VERSION
             if (!canCreateNewLogEntry(request.getAreaCode(), activeBillCycle, request.getProCode())) {
                 return createErrorResponse("Cannot create new log entry. Area may have pending processes or cycle is complete.");
             }
@@ -112,7 +112,7 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Update log entry with end time and calculate duration
+     * Update log entry with end time and calculate duration - USING TRIMMED VERSIONS
      */
     @Transactional
     public Bill_CycleLogDTO.LogFileResponse completeLogEntry(Bill_CycleLogDTO.LogFileEndRequest request) {
@@ -134,7 +134,7 @@ public class Bill_CycleLogService {
 
             Bill_CycleLogFile logEntry = logEntryOpt.get();
 
-            // Validate user access to this log entry
+            // Validate user access to this log entry - USING TRIMMED VERSION
             if (!hasAreaAccess(userInfo, logEntry.getAreaCode()) || 
                 !request.getUserId().equals(logEntry.getUserId())) {
                 return createErrorResponse("Access denied to this log entry");
@@ -199,7 +199,7 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Get logs for a specific area and bill cycle
+     * Get logs for a specific area and bill cycle - USING TRIMMED VERSIONS
      */
     @Transactional(readOnly = true)
     public Bill_CycleLogDTO.LogsListResponse getAreaLogs(Bill_CycleLogDTO.ActiveLogsRequest request) {
@@ -218,8 +218,8 @@ public class Bill_CycleLogService {
                 return createErrorLogsResponse("Access denied to area " + request.getAreaCode());
             }
 
-            // Get area information
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(request.getAreaCode());
+            // Get area information - USING TRIMMED VERSION
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(request.getAreaCode());
             if (!areaOpt.isPresent()) {
                 return createErrorLogsResponse("Area not found");
             }
@@ -231,17 +231,17 @@ public class Bill_CycleLogService {
             if (request.getBillCycle() != null) {
                 billCycleToUse = request.getBillCycle();
             } else {
-                // Use active bill cycle
+                // Use active bill cycle - USING TRIMMED VERSION
                 Optional<Integer> activeBillCycleOpt = billCycleConfigRepository
-                    .findMaxActiveBillCycleNumberByAreaCode(request.getAreaCode());
+                    .findMaxActiveBillCycleNumberByAreaCodeTrimmed(request.getAreaCode());
                 if (!activeBillCycleOpt.isPresent()) {
                     return createErrorLogsResponse("No active bill cycle found for area");
                 }
                 billCycleToUse = activeBillCycleOpt.get();
             }
 
-            // Get logs
-            List<Bill_CycleLogFile> logs = logRepository.findByAreaCodeAndBillCycle(
+            // Get logs - USING TRIMMED VERSION
+            List<Bill_CycleLogFile> logs = logRepository.findByAreaCodeAndBillCycleTrimmed(
                 request.getAreaCode(), billCycleToUse);
 
             // Convert to DTOs
@@ -258,9 +258,9 @@ public class Bill_CycleLogService {
             boolean hasProcess901 = logDTOs.stream()
                 .anyMatch(log -> SPECIAL_PROCESS_CODE.equals(log.getProCode()));
 
-            // Get active bill cycle for comparison
+            // Get active bill cycle for comparison - USING TRIMMED VERSION
             Optional<Integer> activeBillCycleOpt = billCycleConfigRepository
-                .findMaxActiveBillCycleNumberByAreaCode(request.getAreaCode());
+                .findMaxActiveBillCycleNumberByAreaCodeTrimmed(request.getAreaCode());
             Integer activeBillCycle = activeBillCycleOpt.orElse(null);
 
             return Bill_CycleLogDTO.LogsListResponse.builder()
@@ -284,7 +284,7 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Get area status including bill cycle and log information
+     * Get area status including bill cycle and log information - USING TRIMMED VERSIONS
      */
     @Transactional(readOnly = true)
     public Bill_CycleLogDTO.AreaStatusResponse getAreaStatus(String sessionId, String userId, String areaCode) {
@@ -302,37 +302,37 @@ public class Bill_CycleLogService {
                 return createErrorAreaStatusResponse("Access denied to area " + areaCode);
             }
 
-            // Get area information
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(areaCode);
+            // Get area information - USING TRIMMED VERSION
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(areaCode);
             if (!areaOpt.isPresent()) {
                 return createErrorAreaStatusResponse("Area not found");
             }
 
             HsbArea area = areaOpt.get();
 
-            // Get active bill cycle
+            // Get active bill cycle - USING TRIMMED VERSION
             Optional<Integer> activeBillCycleOpt = billCycleConfigRepository
-                .findMaxActiveBillCycleNumberByAreaCode(areaCode);
+                .findMaxActiveBillCycleNumberByAreaCodeTrimmed(areaCode);
             if (!activeBillCycleOpt.isPresent()) {
                 return createErrorAreaStatusResponse("No active bill cycle found for area");
             }
 
             Integer activeBillCycle = activeBillCycleOpt.get();
 
-            // Check for pending logs
-            Long pendingCount = logRepository.countPendingLogsByAreaAndBillCycle(areaCode, activeBillCycle);
+            // Check for pending logs - USING TRIMMED VERSION
+            Long pendingCount = logRepository.countPendingLogsByAreaAndBillCycleTrimmed(areaCode, activeBillCycle);
             boolean hasPendingLogs = pendingCount > 0;
 
-            // Get last completed process
+            // Get last completed process - USING TRIMMED VERSION
             Optional<Bill_CycleLogFile> lastCompletedOpt = logRepository
-                .findLastCompletedProcess(areaCode, activeBillCycle);
+                .findLastCompletedProcessTrimmed(areaCode, activeBillCycle);
             String lastCompletedProcess = lastCompletedOpt
                 .map(Bill_CycleLogFile::getProCode)
                 .orElse(null);
 
-            // Check if process 9.01 is completed
+            // Check if process 9.01 is completed - USING TRIMMED VERSION
             Optional<Bill_CycleLogFile> completed901 = logRepository
-                .findCompletedProcess901(areaCode, activeBillCycle);
+                .findCompletedProcess901Trimmed(areaCode, activeBillCycle);
             
             // Determine cycle completion status
             String cycleStatus;
@@ -372,7 +372,7 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Get system statistics for dashboard
+     * Get system statistics for dashboard - USING TRIMMED VERSIONS
      */
     @Transactional(readOnly = true)
     public Bill_CycleLogDTO.LogSystemStatsDTO getSystemStatistics() {
@@ -389,7 +389,7 @@ public class Bill_CycleLogService {
             List<String> areasWithPendingLogs = logRepository.findAreasWithPendingLogs();
             List<String> areasReadyForCycleChange = logRepository.findAreasReadyForBillCycleChange();
             
-            // Get total active areas (areas with bill cycles)
+            // Get total active areas (areas with bill cycles) - USING TRIMMED VERSION
             List<String> allActiveAreas = billCycleConfigRepository.findAreaCodesWithActiveBillCycles();
 
             return Bill_CycleLogDTO.LogSystemStatsDTO.builder()
@@ -404,36 +404,6 @@ public class Bill_CycleLogService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to get system statistics: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * Get logs for multiple areas (bulk operation)
-     */
-    @Transactional(readOnly = true)
-    public Map<String, Bill_CycleLogDTO.LogsListResponse> getBulkAreaLogs(
-            List<String> areaCodes, String sessionId, String userId, Integer billCycle) {
-        
-        Map<String, Bill_CycleLogDTO.LogsListResponse> results = new HashMap<>();
-        
-        for (String areaCode : areaCodes) {
-            try {
-                Bill_CycleLogDTO.ActiveLogsRequest request = new Bill_CycleLogDTO.ActiveLogsRequest();
-                request.setSessionId(sessionId);
-                request.setUserId(userId);
-                request.setAreaCode(areaCode);
-                request.setBillCycle(billCycle);
-                
-                Bill_CycleLogDTO.LogsListResponse response = getAreaLogs(request);
-                results.put(areaCode, response);
-                
-            } catch (Exception e) {
-                Bill_CycleLogDTO.LogsListResponse errorResponse = createErrorLogsResponse(
-                    "Failed to get logs for area " + areaCode + ": " + e.getMessage());
-                results.put(areaCode, errorResponse);
-            }
-        }
-        
-        return results;
     }
 
     // Helper Methods
@@ -461,24 +431,24 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Check if area can accept new log entries
+     * Check if area can accept new log entries - USING TRIMMED VERSIONS
      */
     private boolean canCreateNewLogEntry(String areaCode, Integer billCycle, String proCode) {
-        // Check if there are pending logs
-        Long pendingCount = logRepository.countPendingLogsByAreaAndBillCycle(areaCode, billCycle);
+        // Check if there are pending logs - USING TRIMMED VERSION
+        Long pendingCount = logRepository.countPendingLogsByAreaAndBillCycleTrimmed(areaCode, billCycle);
         if (pendingCount > 0) {
             return false; // Can't create new while there are pending
         }
 
-        // Check if process 9.01 is already completed (cycle is done)
-        Optional<Bill_CycleLogFile> completed901 = logRepository.findCompletedProcess901(areaCode, billCycle);
+        // Check if process 9.01 is already completed (cycle is done) - USING TRIMMED VERSION
+        Optional<Bill_CycleLogFile> completed901 = logRepository.findCompletedProcess901Trimmed(areaCode, billCycle);
         if (completed901.isPresent()) {
             return false; // Cycle is complete
         }
 
-        // Check if trying to create duplicate process code
+        // Check if trying to create duplicate process code - USING TRIMMED VERSION
         Optional<Bill_CycleLogFile> existingProcess = logRepository
-            .findByAreaCodeAndBillCycleAndProCode(areaCode, billCycle, proCode);
+            .findByAreaCodeAndBillCycleAndProCodeTrimmed(areaCode, billCycle, proCode);
         if (existingProcess.isPresent()) {
             return false; // Process code already exists
         }
@@ -487,15 +457,15 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Trigger bill cycle change when process 9.01 is completed
+     * Trigger bill cycle change when process 9.01 is completed - USING TRIMMED VERSIONS
      */
     @Transactional
     private Bill_CycleLogDTO.BillCycleChangeDTO triggerBillCycleChange(String areaCode, Integer currentBillCycle, 
                                                                        String proCode, String userId) {
         try {
-            // Update current bill cycle status to inactive (2)
+            // Update current bill cycle status to inactive (2) - USING TRIMMED VERSION
             Optional<BillCycleConfig> currentConfigOpt = billCycleConfigRepository
-                .findByAreaCodeAndBillCycle(areaCode, currentBillCycle);
+                .findByAreaCodeAndBillCycleTrimmed(areaCode, currentBillCycle);
             
             if (currentConfigOpt.isPresent()) {
                 BillCycleConfig currentConfig = currentConfigOpt.get();
@@ -530,7 +500,7 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Check if user has access to an area
+     * Check if user has access to an area - USING TRIMMED VERSIONS
      */
     private boolean hasAreaAccess(SecInfoLoginDTO.UserInfo userInfo, String areaCode) {
         String userCategory = userInfo.getUserCategory();
@@ -543,9 +513,9 @@ public class Bill_CycleLogService {
             return areaCode.equals(userInfo.getAreaCode());
         }
 
-        // For Region and Province users, check via area lookup
+        // For Region and Province users, check via area lookup - USING TRIMMED VERSION
         try {
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(areaCode);
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(areaCode);
             if (!areaOpt.isPresent()) {
                 return false;
             }
@@ -569,16 +539,16 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Convert entity to DTO
+     * Convert entity to DTO - USING TRIMMED VERSIONS
      */
     private Bill_CycleLogDTO.LogFileEntryDTO convertToEntryDTO(Bill_CycleLogFile logEntry) {
         boolean isCompleted = logEntry.getEndTime() != null && !DEFAULT_END_TIME.equals(logEntry.getEndTime());
         boolean isProcess901 = SPECIAL_PROCESS_CODE.equals(logEntry.getProCode());
         
-        // Get area name
+        // Get area name - USING TRIMMED VERSION
         String areaName = "";
         try {
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(logEntry.getAreaCode());
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(logEntry.getAreaCode());
             if (areaOpt.isPresent()) {
                 areaName = areaOpt.get().getAreaName();
             }
@@ -672,50 +642,50 @@ public class Bill_CycleLogService {
     }
 
     /**
-     * Get pending logs count for an area
+     * Get pending logs count for an area - USING TRIMMED VERSION
      */
     @Transactional(readOnly = true)
     public Long getPendingLogsCount(String areaCode, Integer billCycle) {
-        return logRepository.countPendingLogsByAreaAndBillCycle(areaCode, billCycle);
+        return logRepository.countPendingLogsByAreaAndBillCycleTrimmed(areaCode, billCycle);
     }
 
     /**
-     * Get completed logs count for an area
+     * Get completed logs count for an area - USING TRIMMED VERSION
      */
     @Transactional(readOnly = true)
     public Long getCompletedLogsCount(String areaCode, Integer billCycle) {
-        return logRepository.countCompletedLogsByAreaAndBillCycle(areaCode, billCycle);
+        return logRepository.countCompletedLogsByAreaAndBillCycleTrimmed(areaCode, billCycle);
     }
 
     /**
-     * Check if specific process exists for area and bill cycle
+     * Check if specific process exists for area and bill cycle - USING TRIMMED VERSION
      */
     @Transactional(readOnly = true)
     public boolean processCodeExists(String areaCode, Integer billCycle, String proCode) {
         Optional<Bill_CycleLogFile> existing = logRepository
-            .findByAreaCodeAndBillCycleAndProCode(areaCode, billCycle, proCode);
+            .findByAreaCodeAndBillCycleAndProCodeTrimmed(areaCode, billCycle, proCode);
         return existing.isPresent();
     }
 
     /**
-     * Get logs by user ID
+     * Get logs by user ID - USING TRIMMED VERSION
      */
     @Transactional(readOnly = true)
     public List<Bill_CycleLogDTO.LogFileEntryDTO> getLogsByUserId(String userId) {
-        List<Bill_CycleLogFile> logs = logRepository.findByUserId(userId);
+        List<Bill_CycleLogFile> logs = logRepository.findByUserIdTrimmed(userId);
         return logs.stream()
             .map(this::convertToEntryDTO)
             .collect(Collectors.toList());
     }
 
     /**
-     * Get logs by date range
+     * Get logs by date range - USING TRIMMED VERSION
      */
     @Transactional(readOnly = true)
     public List<Bill_CycleLogDTO.LogFileEntryDTO> getLogsByDateRange(
             String areaCode, LocalDateTime startDate, LocalDateTime endDate) {
         List<Bill_CycleLogFile> logs = logRepository
-            .findByAreaCodeAndDateTimeBetween(areaCode, startDate, endDate);
+            .findByAreaCodeAndDateTimeBetweenTrimmed(areaCode, startDate, endDate);
         return logs.stream()
             .map(this::convertToEntryDTO)
             .collect(Collectors.toList());
@@ -749,5 +719,4 @@ public class Bill_CycleLogService {
             .timestamp(LocalDateTime.now())
             .build();
     }
-
 }
