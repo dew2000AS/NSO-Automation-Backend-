@@ -1,3 +1,4 @@
+// SecInfoSessionData
 package com.example.SPSProjectBackend.security;
 
 import org.springframework.boot.CommandLineRunner;

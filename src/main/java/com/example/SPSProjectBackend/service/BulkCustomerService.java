@@ -32,22 +32,24 @@ public class BulkCustomerService {
         }
     }
 
-    // Get customer by account number
+    // Get customer by account number - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public Optional<BulkCustomerDTO> getCustomerByAccNbr(String accNbr) {
         try {
-            Optional<BulkCustomer> customer = bulkCustomerRepository.findByAccNbr(accNbr);
+            // Use trimmed version for lookup
+            Optional<BulkCustomer> customer = bulkCustomerRepository.findByAccNbrTrimmed(accNbr);
             return customer.map(this::convertToDTO);
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve customer by account number: " + accNbr + " - " + e.getMessage(), e);
         }
     }
 
-    // Get customers by area code
+    // Get customers by area code - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getCustomersByAreaCd(String areaCd) {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findByAreaCd(areaCd);
+            // Use trimmed version for lookup
+            List<BulkCustomer> customers = bulkCustomerRepository.findByAreaCdTrimmed(areaCd);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -82,12 +84,12 @@ public class BulkCustomerService {
         }
     }
 
-    // Search customers by name
+    // Search customers by name - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> searchCustomersByName(String name) {
         try {
             String searchPattern = "%" + name + "%";
-            List<BulkCustomer> customers = bulkCustomerRepository.findByNameContaining(searchPattern);
+            List<BulkCustomer> customers = bulkCustomerRepository.findByNameContainingTrimmed(searchPattern);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -96,11 +98,11 @@ public class BulkCustomerService {
         }
     }
 
-    // Get customers by tariff
+    // Get customers by tariff - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getCustomersByTariff(String tariff) {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findByTariff(tariff);
+            List<BulkCustomer> customers = bulkCustomerRepository.findByTariffTrimmed(tariff);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -109,11 +111,11 @@ public class BulkCustomerService {
         }
     }
 
-    // Get customers by operational status
+    // Get customers by operational status - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getCustomersByOpStat(String opStat) {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findByOpStat(opStat);
+            List<BulkCustomer> customers = bulkCustomerRepository.findByOpStatTrimmed(opStat);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -122,22 +124,22 @@ public class BulkCustomerService {
         }
     }
 
-    // Get customers by mobile number
+    // Get customer by mobile number - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public Optional<BulkCustomerDTO> getCustomerByMobileNo(String mobileNo) {
         try {
-            Optional<BulkCustomer> customer = bulkCustomerRepository.findByMobileNo(mobileNo);
+            Optional<BulkCustomer> customer = bulkCustomerRepository.findByMobileNoTrimmed(mobileNo);
             return customer.map(this::convertToDTO);
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve customer by mobile number: " + e.getMessage(), e);
         }
     }
 
-    // Get customers by city
+    // Get customers by city - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getCustomersByCity(String city) {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findByCity(city);
+            List<BulkCustomer> customers = bulkCustomerRepository.findByCityTrimmed(city);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -159,11 +161,11 @@ public class BulkCustomerService {
         }
     }
 
-    // Search customers by multiple criteria
+    // Search customers by multiple criteria - USING TRIMMED VERSION
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> searchCustomersByMultipleCriteria(String areaCd, String zone, String tariff, String opStat, String cusCat) {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findByMultipleCriteria(areaCd, zone, tariff, opStat, cusCat);
+            List<BulkCustomer> customers = bulkCustomerRepository.findByMultipleCriteriaTrimmed(areaCd, zone, tariff, opStat, cusCat);
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -185,15 +187,15 @@ public class BulkCustomerService {
         }
     }
 
-    // Create new customer
+    // Create new customer - USING TRIMMED VERSION FOR VALIDATION
     @Transactional
     public BulkCustomerDTO createCustomer(BulkCustomerDTO customerDTO) {
         try {
             // Validate required fields
             validateCustomer(customerDTO);
 
-            // Check if customer already exists
-            if (bulkCustomerRepository.existsByAccNbr(customerDTO.getAccNbr())) {
+            // Check if customer already exists - USING TRIMMED VERSION
+            if (bulkCustomerRepository.existsByAccNbrTrimmed(customerDTO.getAccNbr())) {
                 throw new RuntimeException("Customer with account number " + customerDTO.getAccNbr() + " already exists");
             }
 
@@ -213,14 +215,15 @@ public class BulkCustomerService {
         }
     }
 
-    // Update existing customer
+    // Update existing customer - USING TRIMMED VERSION FOR LOOKUP
     @Transactional
     public BulkCustomerDTO updateCustomer(String accNbr, BulkCustomerDTO customerDTO) {
         try {
             // Validate required fields
             validateCustomer(customerDTO);
 
-            Optional<BulkCustomer> existingCustomer = bulkCustomerRepository.findByAccNbr(accNbr);
+            // Use trimmed version for lookup
+            Optional<BulkCustomer> existingCustomer = bulkCustomerRepository.findByAccNbrTrimmed(accNbr);
             if (!existingCustomer.isPresent()) {
                 throw new RuntimeException("Customer with account number " + accNbr + " not found");
             }
@@ -293,7 +296,7 @@ public class BulkCustomerService {
         }
     }
 
-    // Count methods
+    // Count methods - USING TRIMMED VERSIONS
     @Transactional(readOnly = true)
     public Long countCustomersByArea(String areaCd) {
         try {
@@ -318,6 +321,29 @@ public class BulkCustomerService {
             return bulkCustomerRepository.countByOpStat(opStat);
         } catch (Exception e) {
             throw new RuntimeException("Failed to count customers by operational status: " + e.getMessage(), e);
+        }
+    }
+
+    // Get customers by multiple account numbers - USING TRIMMED VERSIONS
+    @Transactional(readOnly = true)
+    public List<BulkCustomerDTO> getCustomersByAccNbrs(List<String> accNbrs, String areaCd) {
+        try {
+            List<BulkCustomer> customers = bulkCustomerRepository.findByAccNbrInAndAreaCd(accNbrs, areaCd);
+            return customers.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve customers by account numbers: " + e.getMessage(), e);
+        }
+    }
+
+    // Check if customer exists - USING TRIMMED VERSION
+    @Transactional(readOnly = true)
+    public boolean customerExists(String accNbr) {
+        try {
+            return bulkCustomerRepository.existsByAccNbrTrimmed(accNbr);
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -415,8 +441,6 @@ public class BulkCustomerService {
         if (dto.getCustType() != null) customer.setCustType(dto.getCustType());
         if (dto.getNetType() != null) customer.setNetType(dto.getNetType());
         if (dto.getCatCode() != null) customer.setCatCode(dto.getCatCode());
-        if (dto.getCnnctType() != null) customer.setCnnctType(dto.getCnnctType());
-        if (dto.getBess() != null) customer.setBess(dto.getBess());
     }
 
     // Convert Entity to DTO
@@ -482,8 +506,6 @@ public class BulkCustomerService {
         dto.setCustType(customer.getCustType());
         dto.setNetType(customer.getNetType());
         dto.setCatCode(customer.getCatCode());
-        dto.setCnnctType(customer.getCnnctType());
-        dto.setBess(customer.getBess());
         return dto;
     }
 
@@ -550,8 +572,6 @@ public class BulkCustomerService {
         customer.setCustType(dto.getCustType());
         customer.setNetType(dto.getNetType());
         customer.setCatCode(dto.getCatCode());
-        customer.setCnnctType(dto.getCnnctType());
-        customer.setBess(dto.getBess());
         return customer;
     }
 }

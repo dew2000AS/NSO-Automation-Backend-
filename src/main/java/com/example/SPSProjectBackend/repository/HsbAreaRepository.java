@@ -12,19 +12,43 @@ import java.util.Optional;
 @Repository
 public interface HsbAreaRepository extends JpaRepository<HsbArea, String> {
     
-    // Find area by code
+    // ============ NEW TRIMMED QUERIES ============
+    
+    // Find area by code with trimming
+    @Query("SELECT a FROM HsbArea a WHERE TRIM(a.areaCode) = TRIM(:areaCode)")
+    Optional<HsbArea> findByAreaCodeTrimmed(@Param("areaCode") String areaCode);
+    
+    // Find areas by province code with trimming
+    @Query("SELECT a FROM HsbArea a WHERE TRIM(a.provCode) = TRIM(:provCode) ORDER BY a.areaCode ASC")
+    List<HsbArea> findByProvCodeTrimmed(@Param("provCode") String provCode);
+    
+    // Find areas by region code with trimming
+    @Query("SELECT a FROM HsbArea a WHERE TRIM(a.region) = TRIM(:regionCode) ORDER BY a.areaCode ASC")
+    List<HsbArea> findByRegionCodeTrimmed(@Param("regionCode") String regionCode);
+    
+    // Find areas by region and province with trimming
+    @Query("SELECT a FROM HsbArea a WHERE TRIM(a.region) = TRIM(:regionCode) AND TRIM(a.provCode) = TRIM(:provCode) ORDER BY a.areaCode ASC")
+    List<HsbArea> findByRegionAndProvinceTrimmed(@Param("regionCode") String regionCode, @Param("provCode") String provCode);
+    
+    // Check if area code exists with trimming
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM HsbArea a WHERE TRIM(a.areaCode) = TRIM(:areaCode)")
+    boolean existsByAreaCodeTrimmed(@Param("areaCode") String areaCode);
+    
+    // ============ EXISTING QUERIES ============
+    
+    // Find area by code (original)
     @Query("SELECT a FROM HsbArea a WHERE a.areaCode = :areaCode")
     Optional<HsbArea> findByAreaCode(@Param("areaCode") String areaCode);
     
-    // Find areas by province code
+    // Find areas by province code (original)
     @Query("SELECT a FROM HsbArea a WHERE a.provCode = :provCode ORDER BY a.areaCode ASC")
     List<HsbArea> findByProvCode(@Param("provCode") String provCode);
     
-    // Find areas by region code
+    // Find areas by region code (original)
     @Query("SELECT a FROM HsbArea a WHERE a.region = :regionCode ORDER BY a.areaCode ASC")
     List<HsbArea> findByRegionCode(@Param("regionCode") String regionCode);
     
-    // Find areas by region and province
+    // Find areas by region and province (original)
     @Query("SELECT a FROM HsbArea a WHERE a.region = :regionCode AND a.provCode = :provCode ORDER BY a.areaCode ASC")
     List<HsbArea> findByRegionAndProvince(@Param("regionCode") String regionCode, @Param("provCode") String provCode);
     
@@ -36,7 +60,7 @@ public interface HsbAreaRepository extends JpaRepository<HsbArea, String> {
     @Query("SELECT DISTINCT a.region FROM HsbArea a WHERE a.region IS NOT NULL ORDER BY a.region ASC")
     List<String> findAllRegions();
     
-    // Check if area code exists
+    // Check if area code exists (original)
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM HsbArea a WHERE a.areaCode = :areaCode")
     boolean existsByAreaCode(@Param("areaCode") String areaCode);
     
@@ -63,7 +87,7 @@ public interface HsbAreaRepository extends JpaRepository<HsbArea, String> {
            "ORDER BY a.areaCode ASC")
     List<Object[]> findAreasWithProvinceNamesByProvince(@Param("provCode") String provCode);
 
-       // Find areas by a list of area codes
-       @Query("SELECT a FROM HsbArea a WHERE a.areaCode IN :areaCodes ORDER BY a.areaCode ASC")
-       List<HsbArea> findByAreaCodeIn(@Param("areaCodes") List<String> areaCodes);
+    // Find areas by a list of area codes
+    @Query("SELECT a FROM HsbArea a WHERE a.areaCode IN :areaCodes ORDER BY a.areaCode ASC")
+    List<HsbArea> findByAreaCodeIn(@Param("areaCodes") List<String> areaCodes);
 }

@@ -13,35 +13,71 @@ import java.util.Optional;
 @Repository
 public interface BillCycleConfigRepository extends JpaRepository<BillCycleConfig, BillCycleConfigId> {
     
-    // Find all bill cycles for a specific area
-    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode ORDER BY bc.billCycle DESC")
-    List<BillCycleConfig> findByAreaCode(@Param("areaCode") String areaCode);
+    // ============ NEW TRIMMED QUERIES ============
     
-    // Find active bill cycles for a specific area (cycle_stat = 1)
-    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
-    List<BillCycleConfig> findActiveByAreaCode(@Param("areaCode") String areaCode);
+    // Find all bill cycles for a specific area with trimming
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) ORDER BY bc.billCycle DESC")
+    List<BillCycleConfig> findByAreaCodeTrimmed(@Param("areaCode") String areaCode);
     
-    // Find the maximum active bill cycle for a specific area
-    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
-    Optional<BillCycleConfig> findMaxActiveBillCycleByAreaCode(@Param("areaCode") String areaCode);
+    // Find active bill cycles for a specific area with trimming
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
+    List<BillCycleConfig> findActiveByAreaCodeTrimmed(@Param("areaCode") String areaCode);
     
-    // Get active bill cycle number for an area (returns just the number)
-    @Query("SELECT MAX(bc.billCycle) FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1")
-    Optional<Integer> findMaxActiveBillCycleNumberByAreaCode(@Param("areaCode") String areaCode);
+    // Find the maximum active bill cycle for a specific area with trimming
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
+    Optional<BillCycleConfig> findMaxActiveBillCycleByAreaCodeTrimmed(@Param("areaCode") String areaCode);
     
-    // Find all bill cycles for multiple areas
+    // Get active bill cycle number for an area with trimming
+    @Query("SELECT MAX(bc.billCycle) FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) AND bc.cycleStat = 1")
+    Optional<Integer> findMaxActiveBillCycleNumberByAreaCodeTrimmed(@Param("areaCode") String areaCode);
+    
+    // Find all bill cycles for multiple areas with trimming
     @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode IN :areaCodes ORDER BY bc.areaCode, bc.billCycle DESC")
     List<BillCycleConfig> findByAreaCodeIn(@Param("areaCodes") List<String> areaCodes);
     
-    // Find active bill cycles for multiple areas
+    // Find active bill cycles for multiple areas with trimming
     @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode IN :areaCodes AND bc.cycleStat = 1 ORDER BY bc.areaCode, bc.billCycle DESC")
     List<BillCycleConfig> findActiveByAreaCodeIn(@Param("areaCodes") List<String> areaCodes);
     
-    // Get max active bill cycles for multiple areas (grouped by area)
+    // Get max active bill cycles for multiple areas with trimming
     @Query("SELECT bc.areaCode, MAX(bc.billCycle) FROM BillCycleConfig bc " +
            "WHERE bc.areaCode IN :areaCodes AND bc.cycleStat = 1 " +
            "GROUP BY bc.areaCode")
     List<Object[]> findMaxActiveBillCyclesByAreaCodes(@Param("areaCodes") List<String> areaCodes);
+    
+    // Check if area has any bill cycles with trimming
+    @Query("SELECT CASE WHEN COUNT(bc) > 0 THEN true ELSE false END FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode)")
+    boolean existsByAreaCodeTrimmed(@Param("areaCode") String areaCode);
+    
+    // Check if area has active bill cycles with trimming
+    @Query("SELECT CASE WHEN COUNT(bc) > 0 THEN true ELSE false END FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) AND bc.cycleStat = 1")
+    boolean hasActiveBillCycleTrimmed(@Param("areaCode") String areaCode);
+    
+    // Find bill cycles by user ID with trimming
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE TRIM(bc.userId) = TRIM(:userId) ORDER BY bc.areaCode, bc.billCycle DESC")
+    List<BillCycleConfig> findByUserIdTrimmed(@Param("userId") String userId);
+    
+    // Find specific bill cycle for an area with trimming
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE TRIM(bc.areaCode) = TRIM(:areaCode) AND bc.billCycle = :billCycle")
+    Optional<BillCycleConfig> findByAreaCodeAndBillCycleTrimmed(@Param("areaCode") String areaCode, @Param("billCycle") Integer billCycle);
+    
+    // ============ EXISTING QUERIES (Keep for backward compatibility) ============
+    
+    // Find all bill cycles for a specific area (original)
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode ORDER BY bc.billCycle DESC")
+    List<BillCycleConfig> findByAreaCode(@Param("areaCode") String areaCode);
+    
+    // Find active bill cycles for a specific area (original)
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
+    List<BillCycleConfig> findActiveByAreaCode(@Param("areaCode") String areaCode);
+    
+    // Find the maximum active bill cycle for a specific area (original)
+    @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1 ORDER BY bc.billCycle DESC")
+    Optional<BillCycleConfig> findMaxActiveBillCycleByAreaCode(@Param("areaCode") String areaCode);
+    
+    // Get active bill cycle number for an area (original)
+    @Query("SELECT MAX(bc.billCycle) FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1")
+    Optional<Integer> findMaxActiveBillCycleNumberByAreaCode(@Param("areaCode") String areaCode);
     
     // Find all areas that have bill cycles
     @Query("SELECT DISTINCT bc.areaCode FROM BillCycleConfig bc ORDER BY bc.areaCode")
@@ -51,15 +87,15 @@ public interface BillCycleConfigRepository extends JpaRepository<BillCycleConfig
     @Query("SELECT DISTINCT bc.areaCode FROM BillCycleConfig bc WHERE bc.cycleStat = 1 ORDER BY bc.areaCode")
     List<String> findAreaCodesWithActiveBillCycles();
     
-    // Check if area has any bill cycles
+    // Check if area has any bill cycles (original)
     @Query("SELECT CASE WHEN COUNT(bc) > 0 THEN true ELSE false END FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode")
     boolean existsByAreaCode(@Param("areaCode") String areaCode);
     
-    // Check if area has active bill cycles
+    // Check if area has active bill cycles (original)
     @Query("SELECT CASE WHEN COUNT(bc) > 0 THEN true ELSE false END FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.cycleStat = 1")
     boolean hasActiveBillCycle(@Param("areaCode") String areaCode);
     
-    // Find bill cycles by user ID
+    // Find bill cycles by user ID (original)
     @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.userId = :userId ORDER BY bc.areaCode, bc.billCycle DESC")
     List<BillCycleConfig> findByUserId(@Param("userId") String userId);
     
@@ -76,7 +112,7 @@ public interface BillCycleConfigRepository extends JpaRepository<BillCycleConfig
            "GROUP BY bc.areaCode")
     List<Object[]> getBillCycleSummaryForAreas(@Param("areaCodes") List<String> areaCodes);
     
-    // Find specific bill cycle for an area
+    // Find specific bill cycle for an area (original)
     @Query("SELECT bc FROM BillCycleConfig bc WHERE bc.areaCode = :areaCode AND bc.billCycle = :billCycle")
     Optional<BillCycleConfig> findByAreaCodeAndBillCycle(@Param("areaCode") String areaCode, @Param("billCycle") Integer billCycle);
     
