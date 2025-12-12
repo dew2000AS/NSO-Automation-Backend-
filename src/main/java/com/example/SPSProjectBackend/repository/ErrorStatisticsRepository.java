@@ -16,11 +16,11 @@ public interface ErrorStatisticsRepository extends JpaRepository<TmpReadings, St
      * Counts accounts, not individual error instances
      */
     @Query("SELECT DISTINCT t.accNbr FROM TmpReadings t " +
-           "WHERE t.areaCd = :areaCode " +
-           "AND t.addedBlcy = :billCycle " +
+           "WHERE TRIM(t.areaCd) = TRIM(:areaCode) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
            "AND t.errStat IS NOT NULL AND t.errStat > 0 " +
            "ORDER BY t.accNbr")
-    List<String> findDistinctAccountsWithErrors(@Param("areaCode") String areaCode, 
+    List<String> findDistinctAccountsWithErrors(@Param("areaCode") String areaCode,
                                                @Param("billCycle") String billCycle);
 
     /**
@@ -29,12 +29,12 @@ public interface ErrorStatisticsRepository extends JpaRepository<TmpReadings, St
      */
     @Query("SELECT t.errStat, COUNT(DISTINCT t.accNbr) " +
            "FROM TmpReadings t " +
-           "WHERE t.areaCd = :areaCode " +
-           "AND t.addedBlcy = :billCycle " +
+           "WHERE TRIM(t.areaCd) = TRIM(:areaCode) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
            "AND t.errStat IS NOT NULL AND t.errStat > 0 " +
            "GROUP BY t.errStat " +
            "ORDER BY t.errStat")
-    List<Object[]> findErrorStatisticsByAreaAndBillCycle(@Param("areaCode") String areaCode, 
+    List<Object[]> findErrorStatisticsByAreaAndBillCycle(@Param("areaCode") String areaCode,
                                                         @Param("billCycle") String billCycle);
 
     /**
@@ -42,51 +42,52 @@ public interface ErrorStatisticsRepository extends JpaRepository<TmpReadings, St
      * Used for detailed error view
      */
     @Query("SELECT t FROM TmpReadings t " +
-           "WHERE t.areaCd = :areaCode " +
-           "AND t.addedBlcy = :billCycle " +
+           "WHERE TRIM(t.areaCd) = TRIM(:areaCode) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
            "AND t.errStat = :errorCode " +
            "ORDER BY t.accNbr, t.mtrType")
-    List<TmpReadings> findErrorInstancesByErrorCode(@Param("areaCode") String areaCode, 
-                                                   @Param("billCycle") String billCycle, 
+    List<TmpReadings> findErrorInstancesByErrorCode(@Param("areaCode") String areaCode,
+                                                   @Param("billCycle") String billCycle,
                                                    @Param("errorCode") Integer errorCode);
 
     /**
      * Get accounts with specific error code including their error instances
      */
     @Query("SELECT t FROM TmpReadings t " +
-           "WHERE t.areaCd = :areaCode " +
-           "AND t.addedBlcy = :billCycle " +
+           "WHERE TRIM(t.areaCd) = TRIM(:areaCode) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
            "AND t.errStat = :errorCode " +
            "ORDER BY t.accNbr, t.mtrType")
-    List<TmpReadings> findAccountsWithErrorCode(@Param("areaCode") String areaCode, 
-                                               @Param("billCycle") String billCycle, 
+    List<TmpReadings> findAccountsWithErrorCode(@Param("areaCode") String areaCode,
+                                               @Param("billCycle") String billCycle,
                                                @Param("errorCode") Integer errorCode);
 
     /**
      * Get total count of error instances (all meter readings with errors)
      */
     @Query("SELECT COUNT(t) FROM TmpReadings t " +
-           "WHERE t.areaCd = :areaCode " +
-           "AND t.addedBlcy = :billCycle " +
+           "WHERE TRIM(t.areaCd) = TRIM(:areaCode) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
            "AND t.errStat IS NOT NULL AND t.errStat > 0")
-    Long countTotalErrorInstances(@Param("areaCode") String areaCode, 
+    Long countTotalErrorInstances(@Param("areaCode") String areaCode,
                                  @Param("billCycle") String billCycle);
 
     /**
      * Get count of accounts without any readings for an area and bill cycle
+     * REWRITTEN: Use LEFT JOIN for efficiency; added TRIM for consistency
      */
     @Query("SELECT COUNT(bc) FROM BulkCustomer bc " +
-           "WHERE bc.areaCd = :areaCode " +
-           "AND bc.accNbr NOT IN (" +
-           "    SELECT DISTINCT t.accNbr FROM TmpReadings t " +
-           "    WHERE t.areaCd = :areaCode AND t.addedBlcy = :billCycle" +
-           ")")
-    Long countUnreadAccounts(@Param("areaCode") String areaCode, 
+           "LEFT JOIN TmpReadings t ON TRIM(bc.accNbr) = TRIM(t.accNbr) " +
+           "AND TRIM(bc.areaCd) = TRIM(t.areaCd) " +
+           "AND TRIM(t.addedBlcy) = TRIM(:billCycle) " +
+           "WHERE TRIM(bc.areaCd) = TRIM(:areaCode) " +
+           "AND t.accNbr IS NULL")
+    Long countUnreadAccounts(@Param("areaCode") String areaCode,
                             @Param("billCycle") String billCycle);
 
     /**
      * Get total number of accounts in an area
      */
-    @Query("SELECT COUNT(bc) FROM BulkCustomer bc WHERE bc.areaCd = :areaCode")
+    @Query("SELECT COUNT(bc) FROM BulkCustomer bc WHERE TRIM(bc.areaCd) = TRIM(:areaCode)")
     Long countTotalAccountsInArea(@Param("areaCode") String areaCode);
 }
