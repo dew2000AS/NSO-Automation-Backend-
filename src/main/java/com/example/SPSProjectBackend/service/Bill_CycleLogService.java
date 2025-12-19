@@ -490,7 +490,7 @@ public class Bill_CycleLogService {
      * Trigger bill cycle change when process 9.01 is completed
      */
     @Transactional
-    private Bill_CycleLogDTO.BillCycleChangeDTO triggerBillCycleChange(String areaCode, Integer currentBillCycle, 
+    public Bill_CycleLogDTO.BillCycleChangeDTO triggerBillCycleChange(String areaCode, Integer currentBillCycle,
                                                                        String proCode, String userId) {
         try {
             // Update current bill cycle status to inactive (2)

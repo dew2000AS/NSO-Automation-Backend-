@@ -250,7 +250,7 @@ public class SecInfoAuthService {
             userInfo.setRegionCode(user.getRegionCode());
             userInfo.setProvinceCode(null);
             userInfo.setAreaCode(null);
-        } else if ("Province User".equals(userCat)) {
+        } else if ("Province User".equals(userCat)|| "Accountant Revenue".equals(userCat) || "Acc Assistance".equals(userCat)||"Accountant Clark".equals(userCat)) {
             // Province users get region_code and province_code
             userInfo.setRegionCode(user.getRegionCode());
             userInfo.setProvinceCode(user.getProvinceCode());
@@ -292,7 +292,7 @@ public class SecInfoAuthService {
             userInfo.setRegionCode(session.getRegionCode());
             userInfo.setProvinceCode(null);
             userInfo.setAreaCode(null);
-        } else if ("Province User".equals(userCat)) {
+        } else if ("Province User".equals(userCat)|| "Accountant Revenue".equals(userCat) || "Acc Assistance".equals(userCat)||"Accountant Clark".equals(userCat)) {
             // Province users get region_code and province_code
             userInfo.setRegionCode(session.getRegionCode());
             userInfo.setProvinceCode(session.getProvinceCode());
@@ -363,6 +363,9 @@ public class SecInfoAuthService {
                 }
                 break;
             case "Province User":
+            case "Accountant Revenue":
+            case "Acc Assistance":
+            case "Accountant Clark":
                 // Province user sees all areas in their province
                 if (user.getProvinceCode() != null) {
                     billCycles = billCycleService.getProvinceBillCycles(user.getProvinceCode());

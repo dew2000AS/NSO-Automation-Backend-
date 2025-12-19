@@ -1,4 +1,4 @@
-// New Model: com.example.SPSProjectBackend.model.TmpCustomerNew.java
+
 package com.example.SPSProjectBackend.model;
 
 import jakarta.persistence.*;
@@ -11,7 +11,7 @@ import java.util.Date;
 @Entity
 @Getter
 @Setter
-@Table(name = "tbl_tmp_customer")
+@Table(name = "tmp_customer")  // Renamed from tbl_tmp_customer
 public class TmpCustomerNew {
 
     @Id
@@ -160,6 +160,15 @@ public class TmpCustomerNew {
 
     @Column(name = "no_loans")
     private Short noLoans;
+
+    @Column(name = "loan_amt", precision = 13, scale = 2)  // Renamed from loan_amount
+    private BigDecimal loanAmt;
+
+    @Column(name = "loan_type", length = 10)  // New field
+    private String loanType;
+
+    @Column(name = "ln_status", columnDefinition = "CHAR(1)")  // New field
+    private String lnStatus;
 
     @Column(name = "cst_st")
     private Short cstSt;

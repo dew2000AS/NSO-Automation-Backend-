@@ -1,5 +1,4 @@
-// Updated Repository: com.example.SPSProjectBackend.repository.TmpCustomerRepository.java
-// Note: Updated to use TmpCustomerNew and findAllWhereAccNbrIsNull
+
 package com.example.SPSProjectBackend.repository;
 
 import com.example.SPSProjectBackend.model.TmpCustomerNew;
@@ -11,7 +10,7 @@ import java.util.List;
 
 @Repository
 public interface TmpCustomerRepository extends JpaRepository<TmpCustomerNew, String> {
-    // Find all customers where acc_nbr is null
+    // Find all customers where acc_nbr is null (updated table reference)
     @Query("SELECT t FROM TmpCustomerNew t WHERE t.accNbr IS NULL")
     List<TmpCustomerNew> findAllWhereAccNbrIsNull();
 }
