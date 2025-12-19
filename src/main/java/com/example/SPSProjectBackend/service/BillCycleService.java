@@ -34,7 +34,7 @@ public class BillCycleService {
     private static final Integer DEFAULT_BILL_CYCLE = 0; // Default value when no bill cycle exists
 
     /**
-     * Get bill cycles based on user's access level
+     * Get bill cycles based on user's access level - USING TRIMMED VERSIONS
      */
     public BillCycleDTO.BillCycleResponse getBillCyclesForUser(String sessionId, String userId) {
         try {
@@ -76,22 +76,22 @@ public class BillCycleService {
     }
 
     /**
-     * Get bill cycles for a specific area
+     * Get bill cycles for a specific area - USING TRIMMED VERSION
      */
     public List<BillCycleDTO.AreaBillCycleDTO> getAreaBillCycles(String areaCode) {
         List<BillCycleDTO.AreaBillCycleDTO> result = new ArrayList<>();
         
         try {
-            // Get area details
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(areaCode);
+            // Get area details - USING TRIMMED VERSION
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(areaCode);
             if (!areaOpt.isPresent()) {
                 return result;
             }
 
             HsbArea area = areaOpt.get();
             
-            // Get active bill cycle for the area
-            Optional<Integer> activeBillCycle = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCode);
+            // Get active bill cycle for the area - USING TRIMMED VERSION
+            Optional<Integer> activeBillCycle = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(areaCode);
             
             BillCycleDTO.AreaBillCycleDTO dto = new BillCycleDTO.AreaBillCycleDTO();
             dto.setAreaCode(area.getAreaCode());
@@ -101,7 +101,7 @@ public class BillCycleService {
             dto.setActiveBillCycle(activeBillCycle.orElse(DEFAULT_BILL_CYCLE));
             dto.setHasBillCycle(activeBillCycle.isPresent());
             
-            // Get province name
+            // Get province name - USING TRIMMED VERSION
             locationService.getProvinceByCode(area.getProvCode())
                 .ifPresent(province -> dto.setProvinceName(province.getProvName()));
             
@@ -115,12 +115,12 @@ public class BillCycleService {
     }
 
     /**
-     * Get bill cycles for all areas in a province
+     * Get bill cycles for all areas in a province - USING TRIMMED VERSIONS
      */
     public List<BillCycleDTO.AreaBillCycleDTO> getProvinceBillCycles(String provinceCode) {
         try {
-            // Get all areas in the province
-            List<HsbArea> areas = areaRepository.findByProvCode(provinceCode);
+            // Get all areas in the province - USING TRIMMED VERSION
+            List<HsbArea> areas = areaRepository.findByProvCodeTrimmed(provinceCode);
             
             if (areas.isEmpty()) {
                 return new ArrayList<>();
@@ -134,7 +134,7 @@ public class BillCycleService {
             // Get active bill cycles for all areas
             Map<String, Integer> activeBillCycles = getActiveBillCyclesForAreas(areaCodes);
 
-            // Get province name
+            // Get province name - USING TRIMMED VERSION
             String provinceName = locationService.getProvinceByCode(provinceCode)
                     .map(p -> p.getProvName())
                     .orElse("");
@@ -161,12 +161,12 @@ public class BillCycleService {
     }
 
     /**
-     * Get bill cycles for all areas in a region
+     * Get bill cycles for all areas in a region - USING TRIMMED VERSIONS
      */
     public List<BillCycleDTO.AreaBillCycleDTO> getRegionBillCycles(String regionCode) {
         try {
-            // Get all areas in the region
-            List<HsbArea> areas = areaRepository.findByRegionCode(regionCode);
+            // Get all areas in the region - USING TRIMMED VERSION
+            List<HsbArea> areas = areaRepository.findByRegionCodeTrimmed(regionCode);
             
             if (areas.isEmpty()) {
                 return new ArrayList<>();
@@ -209,7 +209,7 @@ public class BillCycleService {
                             dto.setActiveBillCycle(DEFAULT_BILL_CYCLE);
                             dto.setHasBillCycle(false);
                             
-                            // Get province name
+                            // Get province name - USING TRIMMED VERSION
                             locationService.getProvinceByCode(area.getProvCode())
                                 .ifPresent(province -> dto.setProvinceName(province.getProvName()));
                             
@@ -225,11 +225,11 @@ public class BillCycleService {
     }
 
     /**
-     * Get bill cycles for all areas (Admin view)
+     * Get bill cycles for all areas (Admin view) - USING TRIMMED VERSIONS
      */
     public List<BillCycleDTO.AreaBillCycleDTO> getAllAreasBillCycles() {
         try {
-            // Get all areas
+            // Get all areas - USING TRIMMED VERSION
             List<HsbArea> allAreas = areaRepository.findAllOrderByAreaCode();
             
             if (allAreas.isEmpty()) {
@@ -273,7 +273,7 @@ public class BillCycleService {
                             dto.setActiveBillCycle(DEFAULT_BILL_CYCLE);
                             dto.setHasBillCycle(false);
                             
-                            // Get province name
+                            // Get province name - USING TRIMMED VERSION
                             locationService.getProvinceByCode(area.getProvCode())
                                 .ifPresent(province -> dto.setProvinceName(province.getProvName()));
                             
@@ -291,7 +291,7 @@ public class BillCycleService {
     }
 
     /**
-     * Get bill cycle summary for areas
+     * Get bill cycle summary for areas - USING TRIMMED VERSIONS
      */
     public List<BillCycleDTO.BillCycleSummaryDTO> getBillCycleSummary(List<String> areaCodes) {
         try {
@@ -313,8 +313,8 @@ public class BillCycleService {
                         summary.setActiveCycles(activeCycles.intValue());
                         summary.setInactiveCycles(inactiveCycles.intValue());
 
-                        // Get active bill cycle
-                        Optional<Integer> activeBillCycle = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCode);
+                        // Get active bill cycle - USING TRIMMED VERSION
+                        Optional<Integer> activeBillCycle = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(areaCode);
                         summary.setActiveBillCycle(activeBillCycle.orElse(DEFAULT_BILL_CYCLE));
 
                         return summary;
@@ -327,11 +327,11 @@ public class BillCycleService {
     }
 
     /**
-     * Check if user has access to view bill cycles for an area
+     * Check if user has access to view bill cycles for an area - USING TRIMMED VERSIONS
      */
     public boolean hasAccessToArea(String sessionId, String userId, String targetAreaCode) {
         try {
-            Optional<HsbArea> areaOpt = areaRepository.findByAreaCode(targetAreaCode);
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(targetAreaCode);
             if (!areaOpt.isPresent()) {
                 return false;
             }
@@ -376,11 +376,11 @@ public class BillCycleService {
     }
 
     /**
-     * Get all bill cycle configurations for an area
+     * Get all bill cycle configurations for an area - USING TRIMMED VERSION
      */
     public List<BillCycleDTO.BillCycleConfigDTO> getAllBillCyclesForArea(String areaCode) {
         try {
-            List<BillCycleConfig> configs = billCycleConfigRepository.findByAreaCode(areaCode);
+            List<BillCycleConfig> configs = billCycleConfigRepository.findByAreaCodeTrimmed(areaCode);
             
             return configs.stream()
                     .map(this::convertToConfigDTO)
@@ -403,5 +403,27 @@ public class BillCycleService {
         dto.setCycleStat(config.getCycleStat());
         dto.setIsActive(config.getCycleStat() != null && config.getCycleStat() == 1);
         return dto;
+    }
+
+    /**
+     * Check if area has active bill cycle - USING TRIMMED VERSION
+     */
+    public boolean hasActiveBillCycle(String areaCode) {
+        try {
+            return billCycleConfigRepository.hasActiveBillCycleTrimmed(areaCode);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get active bill cycle for area - USING TRIMMED VERSION
+     */
+    public Optional<Integer> getActiveBillCycle(String areaCode) {
+        try {
+            return billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(areaCode);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 }

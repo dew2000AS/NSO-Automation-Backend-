@@ -13,12 +13,56 @@ import java.util.Optional;
 
 @Repository
 public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, String> {
+
+    // Find by userId with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId)")
+    Optional<UserAccSecInfo> findByIdTrimmed(@Param("userId") String userId);
     
-    // Find by username
+    // Find by username with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userName) = TRIM(:userName)")
+    Optional<UserAccSecInfo> findByUserNameTrimmed(@Param("userName") String userName);
+    
+    // Find by EPF number with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.epfNum) = TRIM(:epfNum)")
+    Optional<UserAccSecInfo> findByEpfNumTrimmed(@Param("epfNum") String epfNum);
+    
+    // Custom query for login validation with trimming - only for active users
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId) AND TRIM(u.passwd) = TRIM(:passwd) AND u.status = 1")
+    Optional<UserAccSecInfo> findByUserIdAndPasswdTrimmed(@Param("userId") String userId, @Param("passwd") String passwd);
+    
+    // Find active user by userId with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId) AND u.status = 1")
+    Optional<UserAccSecInfo> findActiveUserByIdTrimmed(@Param("userId") String userId);
+    
+    // Find active user by username with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userName) = TRIM(:userName) AND u.status = 1")
+    Optional<UserAccSecInfo> findActiveUserByUserNameTrimmed(@Param("userName") String userName);
+    
+    // Validate login credentials for active users only with trimming
+    @Query("SELECT u FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId) AND TRIM(u.passwd) = TRIM(:passwd) AND u.status = 1")
+    Optional<UserAccSecInfo> validateActiveUserLoginTrimmed(@Param("userId") String userId, @Param("passwd") String passwd);
+    
+    // Check if user exists and is active with trimming
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId) AND u.status = 1")
+    boolean isUserActiveByIdTrimmed(@Param("userId") String userId);
+    
+    // Check if user exists by userId with trimming
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE TRIM(u.userId) = TRIM(:userId)")
+    boolean existsByUserIdTrimmed(@Param("userId") String userId);
+    
+    // Check if user exists by userName with trimming
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE TRIM(u.userName) = TRIM(:userName)")
+    boolean existsByUserNameTrimmed(@Param("userName") String userName);
+    
+    // Check if user exists by EPF number with trimming
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE TRIM(u.epfNum) = TRIM(:epfNum)")
+    boolean existsByEpfNumTrimmed(@Param("epfNum") String epfNum);
+
+    // Find by username (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userName = :userName")
     Optional<UserAccSecInfo> findByUserName(@Param("userName") String userName);
     
-    // Find by EPF number
+    // Find by EPF number (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.epfNum = :epfNum")
     Optional<UserAccSecInfo> findByEpfNum(@Param("epfNum") String epfNum);
     
@@ -49,19 +93,19 @@ public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, 
                                                      @Param("provinceCode") String provinceCode,
                                                      @Param("areaCode") String areaCode);
     
-    // Check if user exists by userId
+    // Check if user exists by userId (original)
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userId = :userId")
     boolean existsByUserId(@Param("userId") String userId);
     
-    // Check if user exists by userName
+    // Check if user exists by userName (original)
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userName = :userName")
     boolean existsByUserName(@Param("userName") String userName);
     
-    // Check if user exists by EPF number
+    // Check if user exists by EPF number (original)
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.epfNum = :epfNum")
     boolean existsByEpfNum(@Param("epfNum") String epfNum);
     
-    // Custom query for login validation - only for active users
+    // Custom query for login validation - only for active users (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.passwd = :passwd AND u.status = 1")
     Optional<UserAccSecInfo> findByUserIdAndPasswd(@Param("userId") String userId, @Param("passwd") String passwd);
     
@@ -83,30 +127,30 @@ public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, 
     @Query("UPDATE UserAccSecInfo u SET u.status = :status WHERE u.userId = :userId")
     void updateUserStatus(@Param("userId") String userId, @Param("status") Integer status);
     
-    // Check if user is active
+    // Check if user is active (original)
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
     boolean isUserActive(@Param("userId") String userId);
 
-    // Enhanced login validation - explicitly for active users only
+    // Enhanced login validation - explicitly for active users only (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
     Optional<UserAccSecInfo> findActiveUserById(@Param("userId") String userId);
 
-    // Find active user by username
+    // Find active user by username (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userName = :userName AND u.status = 1")
     Optional<UserAccSecInfo> findActiveUserByUserName(@Param("userName") String userName);
 
-    // Validate login credentials for active users only
+    // Validate login credentials for active users only (original)
     @Query("SELECT u FROM UserAccSecInfo u WHERE u.userId = :userId AND u.passwd = :passwd AND u.status = 1")
     Optional<UserAccSecInfo> validateActiveUserLogin(@Param("userId") String userId, @Param("passwd") String passwd);
 
-    // Check if user exists and is active
+    // Check if user exists and is active (original)
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UserAccSecInfo u WHERE u.userId = :userId AND u.status = 1")
     boolean isUserActiveById(@Param("userId") String userId);
     
-    // Explicit insert method for debugging (updated with status)
+    // Explicit insert method for debugging (updated with status and class field)
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO testdbnew.sec_info (user_id, user_name, passwd, user_cat, region_code, province_code, area_code, epf_num, status) VALUES (:userId, :userName, :passwd, :userCat, :regionCode, :provinceCode, :areaCode, :epfNum, :status)", nativeQuery = true)
+    @Query(value = "INSERT INTO dbadmin.sec_info (user_id, user_name, passwd, user_cat, region_code, province_code, area_code, epf_num, status, class) VALUES (:userId, :userName, :passwd, :userCat, :regionCode, :provinceCode, :areaCode, :epfNum, :status, :classField)", nativeQuery = true)
     void insertUserManually(@Param("userId") String userId, 
                            @Param("userName") String userName, 
                            @Param("passwd") String passwd, 
@@ -115,5 +159,6 @@ public interface UserAccSecInfoRepository extends JpaRepository<UserAccSecInfo, 
                            @Param("provinceCode") String provinceCode,
                            @Param("areaCode") String areaCode,
                            @Param("epfNum") String epfNum,
-                           @Param("status") Integer status);
+                           @Param("status") Integer status,
+                           @Param("classField") Integer classField);
 }
