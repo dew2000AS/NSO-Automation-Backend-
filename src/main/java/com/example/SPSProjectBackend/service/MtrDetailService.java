@@ -23,8 +23,12 @@ public class MtrDetailService {
     }
 
     public Optional<MtrDetailDTO> getByInstId(String instId) {
-        return repository.findById(instId)
-                .map(this::convertToDTO);
+        List<MtrDetail> details = repository.findByInstId(instId);
+        if (details.isEmpty()) {
+            return Optional.empty();
+        }
+        // Assuming one record or taking the first; adjust if multiple are expected
+        return Optional.of(convertToDTO(details.get(0)));
     }
 
     private MtrDetailDTO convertToDTO(MtrDetail entity) {
@@ -45,15 +49,15 @@ public class MtrDetailService {
         dto.setMtrRatio(entity.getMtrRatio());
         dto.setMFactor(entity.getMFactor());
         dto.setEffctBlcy(entity.getEffctBlcy());
-        dto.setEffctDate(entity.getEffctDate());
+        dto.setEffctDate(entity.getEffctDate() == null ? null : new java.sql.Date(entity.getEffctDate().getTime()));
         dto.setAvgCnsp3(entity.getAvgCnsp3());
         dto.setAvgCnsp6(entity.getAvgCnsp6());
         dto.setAvgCnsp12(entity.getAvgCnsp12());
         dto.setBrCode(entity.getBrCode());
         dto.setUserId(entity.getUserId());
-        dto.setEnteredDtime(entity.getEnteredDtime());
+        dto.setEnteredDtime(entity.getEnteredDtime() == null ? null : new java.sql.Timestamp(entity.getEnteredDtime().getTime()));
         dto.setEditedUserid(entity.getEditedUserid());
-        dto.setEditedDtime(entity.getEditedDtime());
+        dto.setEditedDtime(entity.getEditedDtime() == null ? null : new java.sql.Timestamp(entity.getEditedDtime().getTime()));
         return dto;
     }
 }

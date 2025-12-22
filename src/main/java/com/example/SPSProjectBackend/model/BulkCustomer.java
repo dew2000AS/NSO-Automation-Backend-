@@ -211,11 +211,6 @@ public class BulkCustomer {
     @Column(name = "cat_code", length = 4)
     private String catCode;
 
-    @Column(name = "cnnct_type")
-    private Integer cnnctType;
-
-    @Column(name = "bess")
-    private Integer bess;
     // Add trimming setters for all string fields
     public void setAccNbr(String accNbr) {
         this.accNbr = accNbr != null ? accNbr.trim() : null;
