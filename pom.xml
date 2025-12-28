@@ -205,6 +205,13 @@
 			<artifactId>hibernate-community-dialects</artifactId>
 			<version>6.6.5.Final</version>
 		</dependency>
+
+		<!-- Informix JDBC Driver (installed from local Informix installation) -->
+		<dependency>
+			<groupId>com.ibm.informix</groupId>
+			<artifactId>jdbc</artifactId>
+			<version>4.50.10.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>

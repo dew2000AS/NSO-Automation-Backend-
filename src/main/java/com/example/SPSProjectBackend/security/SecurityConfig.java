@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.security;
 
 import org.springframework.boot.CommandLineRunner;
@@ -17,7 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
+ 
 import java.util.List;
 
 @EnableWebSecurity
@@ -50,7 +49,10 @@ public class SecurityConfig {
                         //SecInfo Accounts
                         .requestMatchers("/api/v1/accounts/**").permitAll()
                         .requestMatchers("/api/v1/secinfo/**").permitAll()
-                        
+
+                        //Tariff Reports
+                        .requestMatchers("/api/tariff-reports/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
@@ -71,11 +73,20 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
-        // Add both origins, or use just 8095
-        configuration.setAllowedOrigins(List.of("http://localhost:8095", "http://localhost:3000", "http://10.128.1.59:8095"));
+        // Add all possible frontend origins
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8095",
+            "http://127.0.0.1:8095"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowCredentials(true);
         configuration.addAllowedHeader("*");
+        // Expose headers needed for blob downloads
+        configuration.setExposedHeaders(List.of("Content-Disposition", "Content-Type", "Content-Length"));
+        // Cache preflight requests for 1 hour
+        configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
