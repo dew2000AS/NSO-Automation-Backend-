@@ -48,8 +48,8 @@ public class ReadingStatusService {
     /**
      * Get reading status for user based on their access level
      */
-    public ReadingStatusDTO.ReadingStatusResponse getReadingStatusForUser(String sessionId, String userId, 
-            boolean includeCustomerDetails, boolean includeReadingDetails) {
+    public ReadingStatusDTO.ReadingStatusResponse getReadingStatusForUser(String sessionId, String userId,
+                                                                          boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
             // Get user info from session
             Optional<SecInfoLoginDTO.UserInfo> userInfoOpt = sessionUtils.getUserLocationFromSession(sessionId, userId);
@@ -93,19 +93,19 @@ public class ReadingStatusService {
     /**
      * Get reading status for a specific area - FIXED VERSION with data type handling
      */
-    public List<ReadingStatusDTO.AreaReadingStatusDTO> getAreaReadingStatus(String areaCode, 
-            boolean includeCustomerDetails, boolean includeReadingDetails) {
+    public List<ReadingStatusDTO.AreaReadingStatusDTO> getAreaReadingStatus(String areaCode,
+                                                                            boolean includeCustomerDetails, boolean includeReadingDetails) {
         List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
-        
+
         try {
             // Add null check
             if (areaCode == null || areaCode.trim().isEmpty()) {
                 throw new RuntimeException("Area code is required");
             }
-            
+
             // Clean area code
             String cleanAreaCode = areaCode.trim();
-            
+
             // Get area details
             Optional<HsbAreaDTO> areaOpt = locationService.getAreaByCode(cleanAreaCode);
             if (!areaOpt.isPresent()) {
@@ -114,10 +114,10 @@ public class ReadingStatusService {
             }
 
             HsbAreaDTO area = areaOpt.get();
-            
+
             // Get active bill cycle for the area
             Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(cleanAreaCode);
-            
+
             if (!activeBillCycleOpt.isPresent()) {
                 System.err.println("ERROR: No active bill cycle found for area: " + cleanAreaCode);
                 // Area has no active bill cycle - all customers are considered pending
@@ -135,7 +135,7 @@ public class ReadingStatusService {
             // Get all customers for the area
             List<BulkCustomer> allCustomers = bulkCustomerRepository.findByAreaCdTrimmed(cleanAreaCode);
             System.out.println("DEBUG: Found " + allCustomers.size() + " customers for area " + cleanAreaCode);
-            
+
             if (allCustomers.isEmpty()) {
                 // No customers in this area
                 ReadingStatusDTO.AreaReadingStatusDTO areaStatus = createEmptyAreaStatus(area, activeBillCycle);
@@ -147,9 +147,10 @@ public class ReadingStatusService {
             // Use native query to handle string comparison properly
             List<TmpReadings> areaReadings = tmpReadingsRepository.findByAreaCdAndBillCycle(cleanAreaCode, activeBillCycleStr);
             System.out.println("DEBUG: Found " + areaReadings.size() + " readings for area " + cleanAreaCode + " and bill cycle " + activeBillCycleStr);
-            
+
             // Create a set of account numbers that have readings for the active bill cycle
             Set<String> accountsWithReadings = areaReadings.stream()
+                    .filter(reading -> reading != null && reading.getAccNbr() != null)
                     .map(TmpReadings::getAccNbr)
                     .collect(Collectors.toSet());
 
@@ -158,21 +159,23 @@ public class ReadingStatusService {
             List<ReadingStatusDTO.CustomerReadingStatusDTO> customersWithoutReadings = new ArrayList<>();
 
             for (BulkCustomer customer : allCustomers) {
-                boolean hasReading = accountsWithReadings.contains(customer.getAccNbr());
-                
+                boolean hasReading = customer.getAccNbr() != null && accountsWithReadings.contains(customer.getAccNbr());
+
                 ReadingStatusDTO.CustomerReadingStatusDTO customerStatus = convertToCustomerStatusDTO(
-                    customer, hasReading, includeCustomerDetails, includeReadingDetails);
-                
+                        customer, hasReading, includeCustomerDetails, includeReadingDetails);
+
                 if (includeReadingDetails && hasReading) {
                     // Get specific readings for this customer
                     List<TmpReadings> customerReadings = areaReadings.stream()
-                            .filter(reading -> reading.getAccNbr().equals(customer.getAccNbr()))
+                            .filter(reading -> reading != null && reading.getAccNbr() != null &&
+                                    customer.getAccNbr() != null &&
+                                    reading.getAccNbr().equals(customer.getAccNbr()))
                             .collect(Collectors.toList());
-                    
+
                     List<TmpReadingsDTO> readingDTOs = customerReadings.stream()
                             .map(this::convertTmpReadingToDTO)
                             .collect(Collectors.toList());
-                    
+
                     customerStatus.setReadings(readingDTOs);
                     customerStatus.setReadingCount(readingDTOs.size());
                 }
@@ -184,8 +187,8 @@ public class ReadingStatusService {
                 }
             }
 
-            System.out.println("DEBUG: Customers with readings: " + customersWithReadings.size() + 
-                          ", without readings: " + customersWithoutReadings.size());
+            System.out.println("DEBUG: Customers with readings: " + customersWithReadings.size() +
+                    ", without readings: " + customersWithoutReadings.size());
 
             // Create area status
             ReadingStatusDTO.AreaReadingStatusDTO areaStatus = new ReadingStatusDTO.AreaReadingStatusDTO();
@@ -198,10 +201,10 @@ public class ReadingStatusService {
             areaStatus.setTotalCustomers(allCustomers.size());
             areaStatus.setCustomersWithReadings(customersWithReadings.size());
             areaStatus.setCustomersWithoutReadings(customersWithoutReadings.size());
-            
+
             // Calculate percentage
-            double percentage = allCustomers.size() > 0 ? 
-                (double) customersWithReadings.size() / allCustomers.size() * 100.0 : 0.0;
+            double percentage = allCustomers.size() > 0 ?
+                    (double) customersWithReadings.size() / allCustomers.size() * 100.0 : 0.0;
             areaStatus.setReadingPercentage(Math.round(percentage * 100.0) / 100.0);
 
             if (includeCustomerDetails) {
@@ -210,37 +213,37 @@ public class ReadingStatusService {
             }
 
             result.add(areaStatus);
-            
+
         } catch (Exception e) {
             System.err.println("ERROR in getAreaReadingStatus for area " + areaCode + ": " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to get reading status for area " + areaCode + ": " + e.getMessage(), e);
         }
-        
+
         return result;
     }
 
     /**
      * Get reading status for all areas in a province
      */
-    public List<ReadingStatusDTO.AreaReadingStatusDTO> getProvinceReadingStatus(String provinceCode, 
-            boolean includeCustomerDetails, boolean includeReadingDetails) {
+    public List<ReadingStatusDTO.AreaReadingStatusDTO> getProvinceReadingStatus(String provinceCode,
+                                                                                boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
             // Get areas by province
             List<HsbAreaDTO> areas = locationService.getAreasByProvince(provinceCode);
-            
+
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : areas) {
                 try {
                     List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                            area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
                     result.addAll(areaStatus);
                 } catch (Exception e) {
                     System.err.println("ERROR processing area " + area.getAreaCode() + " in province " + provinceCode + ": " + e.getMessage());
                     // Continue with other areas
                 }
             }
-            
+
             return result;
 
         } catch (Exception e) {
@@ -253,24 +256,24 @@ public class ReadingStatusService {
     /**
      * Get reading status for all areas in a region
      */
-    public List<ReadingStatusDTO.AreaReadingStatusDTO> getRegionReadingStatus(String regionCode, 
-            boolean includeCustomerDetails, boolean includeReadingDetails) {
+    public List<ReadingStatusDTO.AreaReadingStatusDTO> getRegionReadingStatus(String regionCode,
+                                                                              boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
             // Get areas by region
             List<HsbAreaDTO> areas = locationService.getAreasByRegion(regionCode);
-            
+
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : areas) {
                 try {
                     List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                            area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
                     result.addAll(areaStatus);
                 } catch (Exception e) {
                     System.err.println("ERROR processing area " + area.getAreaCode() + " in region " + regionCode + ": " + e.getMessage());
                     // Continue with other areas
                 }
             }
-            
+
             return result;
 
         } catch (Exception e) {
@@ -287,19 +290,19 @@ public class ReadingStatusService {
             boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
             List<HsbAreaDTO> allAreas = locationService.getAllAreas();
-            
+
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : allAreas) {
                 try {
                     List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                            area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
                     result.addAll(areaStatus);
                 } catch (Exception e) {
                     System.err.println("ERROR processing area " + area.getAreaCode() + ": " + e.getMessage());
                     // Continue with other areas
                 }
             }
-            
+
             return result;
 
         } catch (Exception e) {
@@ -315,13 +318,13 @@ public class ReadingStatusService {
     public ReadingStatusDTO.PendingReadingsDTO getPendingReadingsForArea(String areaCode) {
         try {
             List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(areaCode, true, false);
-            
+
             if (areaStatus.isEmpty()) {
                 return new ReadingStatusDTO.PendingReadingsDTO();
             }
 
             ReadingStatusDTO.AreaReadingStatusDTO status = areaStatus.get(0);
-            
+
             ReadingStatusDTO.PendingReadingsDTO pendingReadings = new ReadingStatusDTO.PendingReadingsDTO();
             pendingReadings.setAreaCode(status.getAreaCode());
             pendingReadings.setAreaName(status.getAreaName());
@@ -344,13 +347,13 @@ public class ReadingStatusService {
     public ReadingStatusDTO.CompletedReadingsDTO getCompletedReadingsForArea(String areaCode) {
         try {
             List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(areaCode, true, true);
-            
+
             if (areaStatus.isEmpty()) {
                 return new ReadingStatusDTO.CompletedReadingsDTO();
             }
 
             ReadingStatusDTO.AreaReadingStatusDTO status = areaStatus.get(0);
-            
+
             ReadingStatusDTO.CompletedReadingsDTO completedReadings = new ReadingStatusDTO.CompletedReadingsDTO();
             completedReadings.setAreaCode(status.getAreaCode());
             completedReadings.setAreaName(status.getAreaName());
@@ -368,13 +371,13 @@ public class ReadingStatusService {
     }
 
     // Helper methods
-    private ReadingStatusDTO.CustomerReadingStatusDTO convertToCustomerStatusDTO(BulkCustomer customer, 
-            boolean hasReading, boolean includeDetails, boolean includeReadingDetails) {
+    private ReadingStatusDTO.CustomerReadingStatusDTO convertToCustomerStatusDTO(BulkCustomer customer,
+                                                                                 boolean hasReading, boolean includeDetails, boolean includeReadingDetails) {
         ReadingStatusDTO.CustomerReadingStatusDTO dto = new ReadingStatusDTO.CustomerReadingStatusDTO();
-        
+
         dto.setAccNbr(customer.getAccNbr());
         dto.setHasReading(hasReading);
-        
+
         if (includeDetails) {
             dto.setName(customer.getName());
             dto.setAddressL1(customer.getAddressL1());
@@ -384,12 +387,12 @@ public class ReadingStatusService {
             dto.setMobileNo(customer.getMobileNo());
             dto.setTelNbr(customer.getTelNbr());
         }
-        
+
         if (!includeReadingDetails) {
             dto.setReadings(new ArrayList<>());
             dto.setReadingCount(0);
         }
-        
+
         return dto;
     }
 
@@ -423,11 +426,11 @@ public class ReadingStatusService {
         return dto;
     }
 
-    private ReadingStatusDTO.AreaReadingStatusDTO createAreaStatusWithoutActiveBillCycle(HsbAreaDTO area, 
-            boolean includeCustomerDetails) {
+    private ReadingStatusDTO.AreaReadingStatusDTO createAreaStatusWithoutActiveBillCycle(HsbAreaDTO area,
+                                                                                         boolean includeCustomerDetails) {
         // Get all customers for this area
         List<BulkCustomer> customers = bulkCustomerRepository.findByAreaCdTrimmed(area.getAreaCode());
-        
+
         ReadingStatusDTO.AreaReadingStatusDTO areaStatus = new ReadingStatusDTO.AreaReadingStatusDTO();
         areaStatus.setAreaCode(area.getAreaCode());
         areaStatus.setAreaName(area.getAreaName());
@@ -439,16 +442,16 @@ public class ReadingStatusService {
         areaStatus.setCustomersWithReadings(0);
         areaStatus.setCustomersWithoutReadings(customers.size());
         areaStatus.setReadingPercentage(0.0);
-        
+
         if (includeCustomerDetails) {
             List<ReadingStatusDTO.CustomerReadingStatusDTO> customerList = customers.stream()
                     .map(customer -> convertToCustomerStatusDTO(customer, false, true, false))
                     .collect(Collectors.toList());
-            
+
             areaStatus.setCustomersWithReadingsList(new ArrayList<>());
             areaStatus.setCustomersWithoutReadingsList(customerList);
         }
-        
+
         return areaStatus;
     }
 
@@ -466,7 +469,7 @@ public class ReadingStatusService {
         areaStatus.setReadingPercentage(0.0);
         areaStatus.setCustomersWithReadingsList(new ArrayList<>());
         areaStatus.setCustomersWithoutReadingsList(new ArrayList<>());
-        
+
         return areaStatus;
     }
 
@@ -475,13 +478,13 @@ public class ReadingStatusService {
         int totalCustomers = areaReadingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getTotalCustomers).sum();
         int totalCustomersWithReadings = areaReadingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithReadings).sum();
         int totalCustomersWithoutReadings = areaReadingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithoutReadings).sum();
-        
+
         double overallPercentage = totalCustomers > 0 ? (double) totalCustomersWithReadings / totalCustomers * 100.0 : 0.0;
-        
+
         int areasWithActiveBillCycles = (int) areaReadingStatus.stream()
                 .filter(area -> area.getActiveBillCycle() != null)
                 .count();
-        
+
         ReadingStatusDTO.ReadingStatusSummaryDTO summary = new ReadingStatusDTO.ReadingStatusSummaryDTO();
         summary.setTotalAreas(totalAreas);
         summary.setTotalCustomers(totalCustomers);
@@ -490,13 +493,13 @@ public class ReadingStatusService {
         summary.setOverallReadingPercentage(Math.round(overallPercentage * 100.0) / 100.0);
         summary.setAreasWithActiveBillCycles(areasWithActiveBillCycles);
         summary.setAreasWithoutActiveBillCycles(totalAreas - areasWithActiveBillCycles);
-        
+
         return summary;
     }
 
-    private ReadingStatusDTO.ReadingStatusResponse createSuccessResponse(String userCategory, 
-            List<ReadingStatusDTO.AreaReadingStatusDTO> areaReadingStatus, 
-            ReadingStatusDTO.ReadingStatusSummaryDTO summary) {
+    private ReadingStatusDTO.ReadingStatusResponse createSuccessResponse(String userCategory,
+                                                                         List<ReadingStatusDTO.AreaReadingStatusDTO> areaReadingStatus,
+                                                                         ReadingStatusDTO.ReadingStatusSummaryDTO summary) {
         ReadingStatusDTO.ReadingStatusResponse response = new ReadingStatusDTO.ReadingStatusResponse();
         response.setSuccess(true);
         response.setMessage("Reading status retrieved successfully");

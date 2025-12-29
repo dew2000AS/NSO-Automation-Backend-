@@ -44,20 +44,20 @@ public class ReadingStatusController {
     @PostMapping(value = "/user-reading-status", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> getUserReadingStatus(@RequestBody Map<String, Object> request) {
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             String sessionId = (String) request.get("session_id");
             String userId = (String) request.get("user_id");
             Boolean includeCustomerDetails = (Boolean) request.getOrDefault("include_customer_details", true);
             Boolean includeReadingDetails = (Boolean) request.getOrDefault("include_reading_details", false);
-            
+
             // Validate input
             if (sessionId == null || sessionId.trim().isEmpty()) {
                 responseMap.put("success", false);
                 responseMap.put("message", "Session ID is required");
                 return ResponseEntity.badRequest().body(responseMap);
             }
-            
+
             if (userId == null || userId.trim().isEmpty()) {
                 responseMap.put("success", false);
                 responseMap.put("message", "User ID is required");
@@ -66,8 +66,8 @@ public class ReadingStatusController {
 
             // Get reading status for user
             ReadingStatusDTO.ReadingStatusResponse response = readingStatusService.getReadingStatusForUser(
-                sessionId, userId, includeCustomerDetails, includeReadingDetails);
-            
+                    sessionId, userId, includeCustomerDetails, includeReadingDetails);
+
             // Convert to response map
             responseMap.put("success", response.getSuccess());
             responseMap.put("message", response.getMessage());
@@ -75,11 +75,18 @@ public class ReadingStatusController {
             responseMap.put("area_reading_status", response.getAreaReadingStatus());
             responseMap.put("summary", response.getSummary());
             responseMap.put("timestamp", response.getTimestamp() != null ? response.getTimestamp().toString() : LocalDateTime.now().toString());
-            
+
             if (response.getSuccess()) {
                 return ResponseEntity.ok(responseMap);
             } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseMap);
+                // Check if the error is due to authentication/authorization or data processing
+                String message = response.getMessage();
+                if (message != null && (message.contains("Session") || message.contains("Unauthorized") || message.contains("Access denied"))) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseMap);
+                } else {
+                    // Data processing error, not authentication error
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+                }
             }
 
         } catch (Exception e) {
@@ -87,7 +94,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve reading status: " + e.getMessage());
             responseMap.put("error", "INTERNAL_ERROR");
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -102,22 +109,22 @@ public class ReadingStatusController {
             @RequestParam(required = false) String user_id,
             @RequestParam(required = false, defaultValue = "true") boolean include_customer_details,
             @RequestParam(required = false, defaultValue = "false") boolean include_reading_details) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             // Validate session and access
             validateSessionAndAccess(session_id, user_id, null, null, areaCode);
 
             List<ReadingStatusDTO.AreaReadingStatusDTO> readingStatus = readingStatusService.getAreaReadingStatus(
-                areaCode, include_customer_details, include_reading_details);
-            
+                    areaCode, include_customer_details, include_reading_details);
+
             responseMap.put("success", true);
             responseMap.put("message", "Reading status retrieved successfully for area " + areaCode);
             responseMap.put("area_code", areaCode);
             responseMap.put("reading_status", readingStatus);
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -125,7 +132,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve reading status for area " + areaCode);
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -138,22 +145,22 @@ public class ReadingStatusController {
             @PathVariable String areaCode,
             @RequestParam(required = false) String session_id,
             @RequestParam(required = false) String user_id) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             // Validate session and access
             validateSessionAndAccess(session_id, user_id, null, null, areaCode);
 
             ReadingStatusDTO.PendingReadingsDTO pendingReadings = readingStatusService.getPendingReadingsForArea(areaCode);
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "Pending readings retrieved successfully for area " + areaCode);
             responseMap.put("area_code", areaCode);
             responseMap.put("pending_readings", pendingReadings);
             responseMap.put("pending_count", pendingReadings.getPendingCount());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -161,7 +168,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve pending readings for area " + areaCode);
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -174,22 +181,22 @@ public class ReadingStatusController {
             @PathVariable String areaCode,
             @RequestParam(required = false) String session_id,
             @RequestParam(required = false) String user_id) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             // Validate session and access
             validateSessionAndAccess(session_id, user_id, null, null, areaCode);
 
             ReadingStatusDTO.CompletedReadingsDTO completedReadings = readingStatusService.getCompletedReadingsForArea(areaCode);
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "Completed readings retrieved successfully for area " + areaCode);
             responseMap.put("area_code", areaCode);
             responseMap.put("completed_readings", completedReadings);
             responseMap.put("completed_count", completedReadings.getCompletedCount());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -197,7 +204,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve completed readings for area " + areaCode);
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -212,18 +219,18 @@ public class ReadingStatusController {
             @RequestParam(required = false) String user_id,
             @RequestParam(required = false, defaultValue = "true") boolean include_customer_details,
             @RequestParam(required = false, defaultValue = "false") boolean include_reading_details) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             List<ReadingStatusDTO.AreaReadingStatusDTO> readingStatus = readingStatusService.getProvinceReadingStatus(
-                provinceCode, include_customer_details, include_reading_details);
-            
+                    provinceCode, include_customer_details, include_reading_details);
+
             // Calculate summary for province
             int totalCustomers = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getTotalCustomers).sum();
             int customersWithReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithReadings).sum();
             int customersWithoutReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithoutReadings).sum();
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "Reading status retrieved successfully for province " + provinceCode);
             responseMap.put("province_code", provinceCode);
@@ -233,7 +240,7 @@ public class ReadingStatusController {
             responseMap.put("customers_with_readings", customersWithReadings);
             responseMap.put("customers_without_readings", customersWithoutReadings);
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -241,7 +248,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve reading status for province " + provinceCode);
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -256,18 +263,18 @@ public class ReadingStatusController {
             @RequestParam(required = false) String user_id,
             @RequestParam(required = false, defaultValue = "true") boolean include_customer_details,
             @RequestParam(required = false, defaultValue = "false") boolean include_reading_details) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             List<ReadingStatusDTO.AreaReadingStatusDTO> readingStatus = readingStatusService.getRegionReadingStatus(
-                regionCode, include_customer_details, include_reading_details);
-            
+                    regionCode, include_customer_details, include_reading_details);
+
             // Calculate summary for region
             int totalCustomers = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getTotalCustomers).sum();
             int customersWithReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithReadings).sum();
             int customersWithoutReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithoutReadings).sum();
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "Reading status retrieved successfully for region " + regionCode);
             responseMap.put("region_code", regionCode);
@@ -277,7 +284,7 @@ public class ReadingStatusController {
             responseMap.put("customers_with_readings", customersWithReadings);
             responseMap.put("customers_without_readings", customersWithoutReadings);
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -285,7 +292,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve reading status for region " + regionCode);
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -299,24 +306,24 @@ public class ReadingStatusController {
             @RequestParam(required = false) String user_id,
             @RequestParam(required = false, defaultValue = "false") boolean include_customer_details,
             @RequestParam(required = false, defaultValue = "false") boolean include_reading_details) {
-        
+
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             List<ReadingStatusDTO.AreaReadingStatusDTO> readingStatus = readingStatusService.getAllAreasReadingStatus(
-                include_customer_details, include_reading_details);
-            
+                    include_customer_details, include_reading_details);
+
             // Group by region for better organization
             Map<String, List<ReadingStatusDTO.AreaReadingStatusDTO>> groupedByRegion = readingStatus.stream()
                     .collect(java.util.stream.Collectors.groupingBy(
-                        rs -> rs.getRegionCode() != null ? rs.getRegionCode() : "UNKNOWN"
+                            rs -> rs.getRegionCode() != null ? rs.getRegionCode() : "UNKNOWN"
                     ));
-            
+
             // Calculate overall summary
             int totalCustomers = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getTotalCustomers).sum();
             int customersWithReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithReadings).sum();
             int customersWithoutReadings = readingStatus.stream().mapToInt(ReadingStatusDTO.AreaReadingStatusDTO::getCustomersWithoutReadings).sum();
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "All reading status retrieved successfully");
             responseMap.put("reading_status", readingStatus);
@@ -326,7 +333,7 @@ public class ReadingStatusController {
             responseMap.put("customers_with_readings", customersWithReadings);
             responseMap.put("customers_without_readings", customersWithoutReadings);
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -334,7 +341,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve all reading status");
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -345,12 +352,12 @@ public class ReadingStatusController {
     @PostMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> getReadingStatusSummary(@RequestBody Map<String, Object> request) {
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             @SuppressWarnings("unchecked")
             List<String> areaCodes = (List<String>) request.get("area_codes");
             Boolean includeDetails = (Boolean) request.getOrDefault("include_details", false);
-            
+
             if (areaCodes == null || areaCodes.isEmpty()) {
                 responseMap.put("success", false);
                 responseMap.put("message", "Area codes are required");
@@ -358,24 +365,24 @@ public class ReadingStatusController {
             }
 
             List<ReadingStatusDTO.AreaReadingStatusDTO> summaryList = new ArrayList<>();
-            
+
             for (String areaCode : areaCodes) {
                 try {
                     List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = readingStatusService.getAreaReadingStatus(
-                        areaCode, includeDetails, false);
+                            areaCode, includeDetails, false);
                     summaryList.addAll(areaStatus);
                 } catch (Exception e) {
                     // Log error but continue with other areas
                     System.err.println("Failed to get reading status for area " + areaCode + ": " + e.getMessage());
                 }
             }
-            
+
             responseMap.put("success", true);
             responseMap.put("message", "Reading status summary retrieved successfully");
             responseMap.put("summary", summaryList);
             responseMap.put("total_areas", summaryList.size());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -383,7 +390,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Failed to retrieve reading status summary");
             responseMap.put("error", e.getMessage());
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
         }
     }
@@ -394,15 +401,15 @@ public class ReadingStatusController {
     @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> checkHealth() {
         Map<String, Object> responseMap = new HashMap<>();
-        
+
         try {
             // Try to perform a simple operation
             readingStatusService.getAreaReadingStatus("00", false, false); // Non-existent area
-            
+
             responseMap.put("status", "healthy");
             responseMap.put("message", "Reading status service is operational");
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.ok(responseMap);
 
         } catch (Exception e) {
@@ -410,7 +417,7 @@ public class ReadingStatusController {
             responseMap.put("message", "Reading status service has issues: " + e.getMessage());
             responseMap.put("error", "SYSTEM_ERROR");
             responseMap.put("timestamp", LocalDateTime.now().toString());
-            
+
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(responseMap);
         }
     }
