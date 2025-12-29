@@ -150,6 +150,7 @@ public class ReadingStatusService {
             
             // Create a set of account numbers that have readings for the active bill cycle
             Set<String> accountsWithReadings = areaReadings.stream()
+                    .filter(reading -> reading != null && reading.getAccNbr() != null)
                     .map(TmpReadings::getAccNbr)
                     .collect(Collectors.toSet());
 
@@ -158,7 +159,7 @@ public class ReadingStatusService {
             List<ReadingStatusDTO.CustomerReadingStatusDTO> customersWithoutReadings = new ArrayList<>();
 
             for (BulkCustomer customer : allCustomers) {
-                boolean hasReading = accountsWithReadings.contains(customer.getAccNbr());
+                boolean hasReading = customer.getAccNbr() != null && accountsWithReadings.contains(customer.getAccNbr());
                 
                 ReadingStatusDTO.CustomerReadingStatusDTO customerStatus = convertToCustomerStatusDTO(
                     customer, hasReading, includeCustomerDetails, includeReadingDetails);
@@ -166,13 +167,15 @@ public class ReadingStatusService {
                 if (includeReadingDetails && hasReading) {
                     // Get specific readings for this customer
                     List<TmpReadings> customerReadings = areaReadings.stream()
-                            .filter(reading -> reading.getAccNbr().equals(customer.getAccNbr()))
+                            .filter(reading -> reading != null && reading.getAccNbr() != null &&
+                                             customer.getAccNbr() != null &&
+                                             reading.getAccNbr().equals(customer.getAccNbr()))
                             .collect(Collectors.toList());
-                    
+
                     List<TmpReadingsDTO> readingDTOs = customerReadings.stream()
                             .map(this::convertTmpReadingToDTO)
                             .collect(Collectors.toList());
-                    
+
                     customerStatus.setReadings(readingDTOs);
                     customerStatus.setReadingCount(readingDTOs.size());
                 }

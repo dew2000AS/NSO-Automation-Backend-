@@ -75,11 +75,18 @@ public class ReadingStatusController {
             responseMap.put("area_reading_status", response.getAreaReadingStatus());
             responseMap.put("summary", response.getSummary());
             responseMap.put("timestamp", response.getTimestamp() != null ? response.getTimestamp().toString() : LocalDateTime.now().toString());
-            
+
             if (response.getSuccess()) {
                 return ResponseEntity.ok(responseMap);
             } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseMap);
+                // Check if the error is due to authentication/authorization or data processing
+                String message = response.getMessage();
+                if (message != null && (message.contains("Session") || message.contains("Unauthorized") || message.contains("Access denied"))) {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseMap);
+                } else {
+                    // Data processing error, not authentication error
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+                }
             }
 
         } catch (Exception e) {
