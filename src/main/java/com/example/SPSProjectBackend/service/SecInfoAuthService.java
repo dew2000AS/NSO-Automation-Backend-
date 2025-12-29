@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.service;
 
 import com.example.SPSProjectBackend.dto.BillCycleDTO;
@@ -55,7 +54,7 @@ public class SecInfoAuthService {
             }
 
             // Find user
-            Optional<UserAccSecInfo> userOptional = userAccSecInfoRepository.findByIdTrimmed(loginRequest.getUserId().trim());
+            Optional<UserAccSecInfo> userOptional = userAccSecInfoRepository.findById(loginRequest.getUserId().trim());
             if (!userOptional.isPresent()) {
                 return createLoginResponse(false, "Invalid user ID or password", null, null, null, null);
             }
@@ -63,7 +62,9 @@ public class SecInfoAuthService {
             UserAccSecInfo user = userOptional.get();
 
             // CRITICAL: Check if user is active BEFORE password validation
+            // This prevents inactive users from logging in even with correct credentials
             if (user.getStatus() == null || user.getStatus() != 1) {
+                // Use generic message for security (don't reveal account exists but is inactive)
                 return createLoginResponse(false, "Invalid user ID or password", null, null, null, null);
             }
 
@@ -71,7 +72,7 @@ public class SecInfoAuthService {
             boolean passwordValid = encryption.validateLogin(
                 loginRequest.getUserId().trim(), 
                 loginRequest.getPassword(), 
-                user.getPasswd() // This is already trimmed by entity getter
+                user.getPasswd()
             );
 
             if (!passwordValid) {
@@ -249,7 +250,7 @@ public class SecInfoAuthService {
             userInfo.setRegionCode(user.getRegionCode());
             userInfo.setProvinceCode(null);
             userInfo.setAreaCode(null);
-        } else if ("Province User".equals(userCat)|| "Accountant Revenue".equals(userCat) || "Acc Assistance".equals(userCat)||"Accountant Clark".equals(userCat)) {
+        } else if ("Province User".equals(userCat)) {
             // Province users get region_code and province_code
             userInfo.setRegionCode(user.getRegionCode());
             userInfo.setProvinceCode(user.getProvinceCode());
@@ -291,7 +292,7 @@ public class SecInfoAuthService {
             userInfo.setRegionCode(session.getRegionCode());
             userInfo.setProvinceCode(null);
             userInfo.setAreaCode(null);
-        } else if ("Province User".equals(userCat)|| "Accountant Revenue".equals(userCat) || "Acc Assistance".equals(userCat)||"Accountant Clark".equals(userCat)) {
+        } else if ("Province User".equals(userCat)) {
             // Province users get region_code and province_code
             userInfo.setRegionCode(session.getRegionCode());
             userInfo.setProvinceCode(session.getProvinceCode());
@@ -362,9 +363,6 @@ public class SecInfoAuthService {
                 }
                 break;
             case "Province User":
-            case "Accountant Revenue":
-            case "Acc Assistance":
-            case "Accountant Clark":
                 // Province user sees all areas in their province
                 if (user.getProvinceCode() != null) {
                     billCycles = billCycleService.getProvinceBillCycles(user.getProvinceCode());

@@ -12,27 +12,11 @@ import java.util.Optional;
 @Repository
 public interface HsbProvinceRepository extends JpaRepository<HsbProvince, String> {
     
-    // ============ NEW TRIMMED QUERIES ============
-    
-    // Find province by code with trimming
-    @Query("SELECT p FROM HsbProvince p WHERE TRIM(p.provCode) = TRIM(:provCode)")
-    Optional<HsbProvince> findByProvCodeTrimmed(@Param("provCode") String provCode);
-    
-    // Find province by name with trimming
-    @Query("SELECT p FROM HsbProvince p WHERE TRIM(p.provName) = TRIM(:provName)")
-    Optional<HsbProvince> findByProvNameTrimmed(@Param("provName") String provName);
-    
-    // Check if province code exists with trimming
-    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM HsbProvince p WHERE TRIM(p.provCode) = TRIM(:provCode)")
-    boolean existsByProvCodeTrimmed(@Param("provCode") String provCode);
-    
-    // ============ EXISTING QUERIES (Keep for backward compatibility) ============
-    
-    // Find province by code (original)
+    // Find province by code
     @Query("SELECT p FROM HsbProvince p WHERE p.provCode = :provCode")
     Optional<HsbProvince> findByProvCode(@Param("provCode") String provCode);
     
-    // Find province by name (original)
+    // Find province by name
     @Query("SELECT p FROM HsbProvince p WHERE p.provName = :provName")
     Optional<HsbProvince> findByProvName(@Param("provName") String provName);
     
@@ -47,7 +31,7 @@ public interface HsbProvinceRepository extends JpaRepository<HsbProvince, String
            "ORDER BY p.provCode ASC")
     List<HsbProvince> findByRegionCode(@Param("regionCode") String regionCode);
     
-    // Check if province code exists (original)
+    // Check if province code exists
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM HsbProvince p WHERE p.provCode = :provCode")
     boolean existsByProvCode(@Param("provCode") String provCode);
     

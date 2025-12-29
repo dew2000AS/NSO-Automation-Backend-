@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.config;
 
 import org.springframework.context.annotation.Bean;

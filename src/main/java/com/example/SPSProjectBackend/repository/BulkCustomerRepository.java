@@ -13,77 +13,15 @@ import java.util.Optional;
 @Repository
 public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, String> {
     
-    // ============ NEW TRIMMED QUERIES ============
-    
-    // Find by account number with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.accNbr) = TRIM(:accNbr)")
-    Optional<BulkCustomer> findByAccNbrTrimmed(@Param("accNbr") String accNbr);
-    
-    // Find customers by area code with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.areaCd) = TRIM(:areaCd) ORDER BY c.accNbr")
-    List<BulkCustomer> findByAreaCdTrimmed(@Param("areaCd") String areaCd);
-    
-    // Check if customer exists by account number with trimming
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM BulkCustomer c WHERE TRIM(c.accNbr) = TRIM(:accNbr)")
-    boolean existsByAccNbrTrimmed(@Param("accNbr") String accNbr);
-    
-    // Find customers by mobile number with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.mobileNo) = TRIM(:mobileNo)")
-    Optional<BulkCustomer> findByMobileNoTrimmed(@Param("mobileNo") String mobileNo);
-    
-    // Find customers by name with trimming (partial search)
-    @Query("SELECT c FROM BulkCustomer c WHERE UPPER(TRIM(c.name)) LIKE UPPER(CONCAT('%', TRIM(:name), '%')) ORDER BY c.name")
-    List<BulkCustomer> findByNameContainingTrimmed(@Param("name") String name);
-    
-    // Find customers by tariff with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.tariff) = TRIM(:tariff) ORDER BY c.accNbr")
-    List<BulkCustomer> findByTariffTrimmed(@Param("tariff") String tariff);
-    
-    // Find customers by customer category with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.cusCat) = TRIM(:cusCat) ORDER BY c.accNbr")
-    List<BulkCustomer> findByCusCatTrimmed(@Param("cusCat") String cusCat);
-    
-    // Find customers by operational status with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.opStat) = TRIM(:opStat) ORDER BY c.accNbr")
-    List<BulkCustomer> findByOpStatTrimmed(@Param("opStat") String opStat);
-    
-    // Find customers by telephone number with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.telNbr) = TRIM(:telNbr)")
-    List<BulkCustomer> findByTelNbrTrimmed(@Param("telNbr") String telNbr);
-    
-    // Find customers by city with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE UPPER(TRIM(c.city)) = UPPER(TRIM(:city)) ORDER BY c.name")
-    List<BulkCustomer> findByCityTrimmed(@Param("city") String city);
-    
-    // Find customers by job number with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.jobNbr) = TRIM(:jobNbr)")
-    List<BulkCustomer> findByJobNbrTrimmed(@Param("jobNbr") String jobNbr);
-    
-    // Search customers by multiple criteria with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE " +
-           "(:areaCd IS NULL OR TRIM(c.areaCd) = TRIM(:areaCd)) AND " +
-           "(:zone IS NULL OR TRIM(c.zone) = TRIM(:zone)) AND " +
-           "(:tariff IS NULL OR TRIM(c.tariff) = TRIM(:tariff)) AND " +
-           "(:opStat IS NULL OR TRIM(c.opStat) = TRIM(:opStat)) AND " +
-           "(:cusCat IS NULL OR TRIM(c.cusCat) = TRIM(:cusCat)) " +
-           "ORDER BY c.accNbr")
-    List<BulkCustomer> findByMultipleCriteriaTrimmed(@Param("areaCd") String areaCd,
-                                                   @Param("zone") String zone,
-                                                   @Param("tariff") String tariff,
-                                                   @Param("opStat") String opStat,
-                                                   @Param("cusCat") String cusCat);
-    
-    // ============ EXISTING QUERIES (Keep for backward compatibility) ============
-    
-    // Find customer by account number (original)
+    // Find customer by account number (primary identifier)
     @Query("SELECT c FROM BulkCustomer c WHERE c.accNbr = :accNbr")
     Optional<BulkCustomer> findByAccNbr(@Param("accNbr") String accNbr);
     
-    // Check if customer exists by account number (original)
+    // Check if customer exists by account number
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM BulkCustomer c WHERE c.accNbr = :accNbr")
     boolean existsByAccNbr(@Param("accNbr") String accNbr);
     
-    // Find customers by area code (original)
+    // Find customers by area code
     @Query("SELECT c FROM BulkCustomer c WHERE c.areaCd = :areaCd ORDER BY c.accNbr")
     List<BulkCustomer> findByAreaCd(@Param("areaCd") String areaCd);
     
@@ -95,35 +33,35 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
     @Query("SELECT c FROM BulkCustomer c WHERE c.zone = :zone AND c.areaCd = :areaCd ORDER BY c.accNbr")
     List<BulkCustomer> findByZoneAndAreaCd(@Param("zone") String zone, @Param("areaCd") String areaCd);
     
-    // Find customers by name (partial search) (original)
+    // Find customers by name (partial search)
     @Query("SELECT c FROM BulkCustomer c WHERE UPPER(c.name) LIKE UPPER(:name) ORDER BY c.name")
     List<BulkCustomer> findByNameContaining(@Param("name") String name);
     
-    // Find customers by tariff (original)
+    // Find customers by tariff
     @Query("SELECT c FROM BulkCustomer c WHERE c.tariff = :tariff ORDER BY c.accNbr")
     List<BulkCustomer> findByTariff(@Param("tariff") String tariff);
     
-    // Find customers by customer category (original)
+    // Find customers by customer category
     @Query("SELECT c FROM BulkCustomer c WHERE c.cusCat = :cusCat ORDER BY c.accNbr")
     List<BulkCustomer> findByCusCat(@Param("cusCat") String cusCat);
     
-    // Find customers by operational status (original)
+    // Find customers by operational status
     @Query("SELECT c FROM BulkCustomer c WHERE c.opStat = :opStat ORDER BY c.accNbr")
     List<BulkCustomer> findByOpStat(@Param("opStat") String opStat);
     
-    // Find customers by mobile number (original)
+    // Find customers by mobile number
     @Query("SELECT c FROM BulkCustomer c WHERE c.mobileNo = :mobileNo")
     Optional<BulkCustomer> findByMobileNo(@Param("mobileNo") String mobileNo);
     
-    // Find customers by telephone number (original)
+    // Find customers by telephone number
     @Query("SELECT c FROM BulkCustomer c WHERE c.telNbr = :telNbr")
     List<BulkCustomer> findByTelNbr(@Param("telNbr") String telNbr);
     
-    // Find customers by city (original)
+    // Find customers by city
     @Query("SELECT c FROM BulkCustomer c WHERE UPPER(c.city) = UPPER(:city) ORDER BY c.name")
     List<BulkCustomer> findByCity(@Param("city") String city);
     
-    // Find customers by job number (original)
+    // Find customers by job number
     @Query("SELECT c FROM BulkCustomer c WHERE c.jobNbr = :jobNbr")
     List<BulkCustomer> findByJobNbr(@Param("jobNbr") String jobNbr);
     
@@ -155,7 +93,7 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
     @Query("SELECT c FROM BulkCustomer c WHERE c.custType = :custType ORDER BY c.accNbr")
     List<BulkCustomer> findByCustType(@Param("custType") String custType);
     
-    // Search customers by multiple criteria (original)
+    // Search customers by multiple criteria
     @Query("SELECT c FROM BulkCustomer c WHERE " +
            "(:areaCd IS NULL OR c.areaCd = :areaCd) AND " +
            "(:zone IS NULL OR c.zone = :zone) AND " +

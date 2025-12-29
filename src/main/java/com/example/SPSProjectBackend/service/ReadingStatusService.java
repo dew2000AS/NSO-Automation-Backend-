@@ -84,42 +84,30 @@ public class ReadingStatusService {
             return createSuccessResponse(userCategory, areaReadingStatus, summary);
 
         } catch (Exception e) {
-            System.err.println("ERROR in getReadingStatusForUser: " + e.getMessage());
-            e.printStackTrace();
             return createErrorResponse("Failed to retrieve reading status: " + e.getMessage());
         }
     }
 
     /**
-     * Get reading status for a specific area - FIXED VERSION with data type handling
+     * Get reading status for a specific area
      */
     public List<ReadingStatusDTO.AreaReadingStatusDTO> getAreaReadingStatus(String areaCode, 
             boolean includeCustomerDetails, boolean includeReadingDetails) {
         List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
         
         try {
-            // Add null check
-            if (areaCode == null || areaCode.trim().isEmpty()) {
-                throw new RuntimeException("Area code is required");
-            }
-            
-            // Clean area code
-            String cleanAreaCode = areaCode.trim();
-            
             // Get area details
-            Optional<HsbAreaDTO> areaOpt = locationService.getAreaByCode(cleanAreaCode);
+            Optional<HsbAreaDTO> areaOpt = locationService.getAreaByCode(areaCode);
             if (!areaOpt.isPresent()) {
-                System.err.println("ERROR: Area not found: " + cleanAreaCode);
-                throw new RuntimeException("Area not found: " + cleanAreaCode);
+                return result;
             }
 
             HsbAreaDTO area = areaOpt.get();
             
             // Get active bill cycle for the area
-            Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(cleanAreaCode);
+            Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCode);
             
             if (!activeBillCycleOpt.isPresent()) {
-                System.err.println("ERROR: No active bill cycle found for area: " + cleanAreaCode);
                 // Area has no active bill cycle - all customers are considered pending
                 ReadingStatusDTO.AreaReadingStatusDTO areaStatus = createAreaStatusWithoutActiveBillCycle(area, includeCustomerDetails);
                 result.add(areaStatus);
@@ -127,14 +115,10 @@ public class ReadingStatusService {
             }
 
             Integer activeBillCycle = activeBillCycleOpt.get();
-            // Convert integer bill cycle to string for comparison with added_blcy
             String activeBillCycleStr = activeBillCycle.toString();
 
-            System.out.println("DEBUG: Processing area " + cleanAreaCode + " with active bill cycle " + activeBillCycleStr);
-
             // Get all customers for the area
-            List<BulkCustomer> allCustomers = bulkCustomerRepository.findByAreaCdTrimmed(cleanAreaCode);
-            System.out.println("DEBUG: Found " + allCustomers.size() + " customers for area " + cleanAreaCode);
+            List<BulkCustomer> allCustomers = bulkCustomerRepository.findByAreaCd(areaCode);
             
             if (allCustomers.isEmpty()) {
                 // No customers in this area
@@ -144,9 +128,7 @@ public class ReadingStatusService {
             }
 
             // Get all temp readings for the area's active bill cycle
-            // Use native query to handle string comparison properly
-            List<TmpReadings> areaReadings = tmpReadingsRepository.findByAreaCdAndBillCycle(cleanAreaCode, activeBillCycleStr);
-            System.out.println("DEBUG: Found " + areaReadings.size() + " readings for area " + cleanAreaCode + " and bill cycle " + activeBillCycleStr);
+            List<TmpReadings> areaReadings = tmpReadingsRepository.findByAreaCdAndBillCycle(areaCode, activeBillCycleStr);
             
             // Create a set of account numbers that have readings for the active bill cycle
             Set<String> accountsWithReadings = areaReadings.stream()
@@ -184,9 +166,6 @@ public class ReadingStatusService {
                 }
             }
 
-            System.out.println("DEBUG: Customers with readings: " + customersWithReadings.size() + 
-                          ", without readings: " + customersWithoutReadings.size());
-
             // Create area status
             ReadingStatusDTO.AreaReadingStatusDTO areaStatus = new ReadingStatusDTO.AreaReadingStatusDTO();
             areaStatus.setAreaCode(area.getAreaCode());
@@ -212,8 +191,6 @@ public class ReadingStatusService {
             result.add(areaStatus);
             
         } catch (Exception e) {
-            System.err.println("ERROR in getAreaReadingStatus for area " + areaCode + ": " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get reading status for area " + areaCode + ": " + e.getMessage(), e);
         }
         
@@ -226,26 +203,18 @@ public class ReadingStatusService {
     public List<ReadingStatusDTO.AreaReadingStatusDTO> getProvinceReadingStatus(String provinceCode, 
             boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
-            // Get areas by province
             List<HsbAreaDTO> areas = locationService.getAreasByProvince(provinceCode);
             
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : areas) {
-                try {
-                    List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
-                    result.addAll(areaStatus);
-                } catch (Exception e) {
-                    System.err.println("ERROR processing area " + area.getAreaCode() + " in province " + provinceCode + ": " + e.getMessage());
-                    // Continue with other areas
-                }
+                List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
+                    area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                result.addAll(areaStatus);
             }
             
             return result;
 
         } catch (Exception e) {
-            System.err.println("ERROR in getProvinceReadingStatus for province " + provinceCode + ": " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get reading status for province " + provinceCode + ": " + e.getMessage(), e);
         }
     }
@@ -256,26 +225,18 @@ public class ReadingStatusService {
     public List<ReadingStatusDTO.AreaReadingStatusDTO> getRegionReadingStatus(String regionCode, 
             boolean includeCustomerDetails, boolean includeReadingDetails) {
         try {
-            // Get areas by region
             List<HsbAreaDTO> areas = locationService.getAreasByRegion(regionCode);
             
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : areas) {
-                try {
-                    List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
-                    result.addAll(areaStatus);
-                } catch (Exception e) {
-                    System.err.println("ERROR processing area " + area.getAreaCode() + " in region " + regionCode + ": " + e.getMessage());
-                    // Continue with other areas
-                }
+                List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
+                    area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                result.addAll(areaStatus);
             }
             
             return result;
 
         } catch (Exception e) {
-            System.err.println("ERROR in getRegionReadingStatus for region " + regionCode + ": " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get reading status for region " + regionCode + ": " + e.getMessage(), e);
         }
     }
@@ -290,21 +251,14 @@ public class ReadingStatusService {
             
             List<ReadingStatusDTO.AreaReadingStatusDTO> result = new ArrayList<>();
             for (HsbAreaDTO area : allAreas) {
-                try {
-                    List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
-                        area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
-                    result.addAll(areaStatus);
-                } catch (Exception e) {
-                    System.err.println("ERROR processing area " + area.getAreaCode() + ": " + e.getMessage());
-                    // Continue with other areas
-                }
+                List<ReadingStatusDTO.AreaReadingStatusDTO> areaStatus = getAreaReadingStatus(
+                    area.getAreaCode(), includeCustomerDetails, includeReadingDetails);
+                result.addAll(areaStatus);
             }
             
             return result;
 
         } catch (Exception e) {
-            System.err.println("ERROR in getAllAreasReadingStatus: " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get reading status for all areas: " + e.getMessage(), e);
         }
     }
@@ -332,8 +286,6 @@ public class ReadingStatusService {
             return pendingReadings;
 
         } catch (Exception e) {
-            System.err.println("ERROR in getPendingReadingsForArea for area " + areaCode + ": " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get pending readings for area " + areaCode + ": " + e.getMessage(), e);
         }
     }
@@ -361,8 +313,6 @@ public class ReadingStatusService {
             return completedReadings;
 
         } catch (Exception e) {
-            System.err.println("ERROR in getCompletedReadingsForArea for area " + areaCode + ": " + e.getMessage());
-            e.printStackTrace();
             throw new RuntimeException("Failed to get completed readings for area " + areaCode + ": " + e.getMessage(), e);
         }
     }
@@ -426,7 +376,7 @@ public class ReadingStatusService {
     private ReadingStatusDTO.AreaReadingStatusDTO createAreaStatusWithoutActiveBillCycle(HsbAreaDTO area, 
             boolean includeCustomerDetails) {
         // Get all customers for this area
-        List<BulkCustomer> customers = bulkCustomerRepository.findByAreaCdTrimmed(area.getAreaCode());
+        List<BulkCustomer> customers = bulkCustomerRepository.findByAreaCd(area.getAreaCode());
         
         ReadingStatusDTO.AreaReadingStatusDTO areaStatus = new ReadingStatusDTO.AreaReadingStatusDTO();
         areaStatus.setAreaCode(area.getAreaCode());

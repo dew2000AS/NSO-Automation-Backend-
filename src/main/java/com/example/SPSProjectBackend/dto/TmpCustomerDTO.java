@@ -1,3 +1,5 @@
+// Updated DTO: com.example.SPSProjectBackend.dto.TmpCustomerDTO.java
+// Added totSecDep field
 package com.example.SPSProjectBackend.dto;
 
 import lombok.Getter;
@@ -35,9 +37,6 @@ public class TmpCustomerDTO {
     private String agrmntNo;
     private String cnectDate; // yyyy-MM-dd
     private Short noLoans;
-    private BigDecimal loanAmt;  // Renamed from loanAmount
-    private String loanType;     // New field
-    private String lnStatus;     // New field
     private Short cstSt;
     private String custCd;  // Fixed: added 't' for consistency
     private String redCode;

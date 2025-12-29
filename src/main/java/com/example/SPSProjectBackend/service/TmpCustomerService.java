@@ -1,5 +1,5 @@
 // Updated Service: com.example.SPSProjectBackend.service.TmpCustomerService.java
-// Removed loanCd mapping, renamed loanAmount to loanAmt, added loanType and lnStatus mappings
+// Added mapping for totSecDep
 package com.example.SPSProjectBackend.service;
 
 import com.example.SPSProjectBackend.dto.TmpCustomerDTO;
@@ -54,9 +54,6 @@ public class TmpCustomerService {
         dto.setAgrmntNo(customer.getAgrmntNo());
         dto.setCnectDate(customer.getCnectDate() != null ? DATE_FORMAT.format(customer.getCnectDate()) : null);
         dto.setNoLoans(customer.getNoLoans());
-        dto.setLoanAmt(customer.getLoanAmt());  // Renamed from loanAmount
-        dto.setLoanType(customer.getLoanType());  // New mapping
-        dto.setLnStatus(customer.getLnStatus());  // New mapping
         dto.setCstSt(customer.getCstSt());
         dto.setCustCd(customer.getCustCd());  // Fixed: use correct getter and setter with 't'
         dto.setRedCode(customer.getRedCode());
@@ -82,15 +79,5 @@ public class TmpCustomerService {
             throw new RuntimeException("TmpCustomer not found with job_nbr: " + jobNbr);
         }
         return mapToDTO(optionalCustomer.get());
-    }
-
-    public void generateAcc(String jobNbr) {
-        Optional<TmpCustomerNew> optionalCustomer = tmpCustomerRepository.findById(jobNbr);
-        if (optionalCustomer.isEmpty()) {
-            throw new RuntimeException("TmpCustomer not found with job_nbr: " + jobNbr);
-        }
-        TmpCustomerNew customer = optionalCustomer.get();
-        customer.setAccNbr("1");
-        tmpCustomerRepository.save(customer);
     }
 }

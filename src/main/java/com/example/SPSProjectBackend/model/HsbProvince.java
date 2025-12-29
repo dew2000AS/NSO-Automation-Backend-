@@ -18,22 +18,4 @@ public class HsbProvince {
     
     @Column(name = "prov_name", length = 20, nullable = false)
     private String provName;
-
-    // Add trimming setters and getters
-    public void setProvCode(String provCode) {
-        this.provCode = provCode != null ? provCode.trim() : null;
-    }
-
-    public void setProvName(String provName) {
-        this.provName = provName != null ? provName.trim() : null;
-    }
-
-    // Override getters to ensure trimmed values
-    public String getProvCode() {
-        return provCode != null ? provCode.trim() : null;
-    }
-
-    public String getProvName() {
-        return provName != null ? provName.trim() : null;
-    }
 }

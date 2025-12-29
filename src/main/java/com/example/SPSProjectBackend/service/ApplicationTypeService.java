@@ -1,4 +1,3 @@
-// remove
 package com.example.SPSProjectBackend.service;
 
 import com.example.SPSProjectBackend.dto.ApplicationTypeDto;

@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.util;
 
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;

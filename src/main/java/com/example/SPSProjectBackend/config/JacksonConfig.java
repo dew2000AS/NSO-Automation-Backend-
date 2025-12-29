@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.config;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;

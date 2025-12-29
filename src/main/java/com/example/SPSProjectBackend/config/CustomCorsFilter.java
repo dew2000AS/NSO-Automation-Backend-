@@ -47,7 +47,7 @@ public class CustomCorsFilter implements Filter {
 
         // Allow both origins, or use just 8095
         String origin = req.getHeader("Origin");
-        if ("http://localhost:8095".equals(origin) || "http://localhost:3000".equals(origin) || "http://10.128.1.59:8095".equals(origin)) {
+        if ("http://localhost:8095".equals(origin) || "http://localhost:3000".equals(origin)) {
             res.setHeader("Access-Control-Allow-Origin", origin);
         }
         

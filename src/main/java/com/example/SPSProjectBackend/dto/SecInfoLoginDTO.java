@@ -1,4 +1,3 @@
-// SecInfoSessionData
 package com.example.SPSProjectBackend.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
