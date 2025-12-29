@@ -6,7 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 @RestController
@@ -30,5 +32,19 @@ public class TmpCustomerController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @PostMapping("/generate-acc")
+    public ResponseEntity<Map<String, Object>> generateAcc(@RequestBody Map<String, Object> body) {
+        String jobNbr = (String) body.get("JobNbr");
+        if (jobNbr == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        tmpCustomerService.generateAcc(jobNbr);
+        Map<String, Object> response = new HashMap<>();
+        Map<String, String> gen = new HashMap<>();
+        gen.put("result", "1");
+        response.put("generatedAccNo", gen);
+        return ResponseEntity.ok(response);
     }
 }

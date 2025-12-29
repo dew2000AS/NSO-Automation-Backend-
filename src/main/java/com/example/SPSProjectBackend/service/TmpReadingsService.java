@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 @Transactional
@@ -24,12 +25,13 @@ public class TmpReadingsService {
     @Autowired
     private BillCycleConfigRepository billCycleConfigRepository;
 
-    // Get all readings with active bill cycle filter (default behavior)
+    // Get all readings with active bill cycle filter (default behavior) - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getAllReadings() {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findAllWithActiveBillCycle();
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -37,12 +39,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get all readings without bill cycle filter (for historical access)
+    // Get all readings without bill cycle filter (for historical access) - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getAllReadingsWithoutFilter() {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findAll();
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -50,12 +53,13 @@ public class TmpReadingsService {
         }
     }
 
-    // Get readings by account number with active bill cycle filter (default behavior)
+    // Get readings by account number with active bill cycle filter (default behavior) - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbr(String accNbr) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrWithActiveBillCycle(accNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -63,12 +67,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get readings by account number without bill cycle filter
+    // Get readings by account number without bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbrWithoutFilter(String accNbr) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByAccNbr(accNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -76,12 +81,13 @@ public class TmpReadingsService {
         }
     }
 
-    // Get readings by account number and date with active bill cycle filter
+    // Get readings by account number and date with active bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbrAndDate(String accNbr, Date rdngDate) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrAndRdngDateWithActiveBillCycle(accNbr, rdngDate);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -89,12 +95,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get readings by account number and date without filter
+    // Get readings by account number and date without filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAccNbrAndDateWithoutFilter(String accNbr, Date rdngDate) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByAccNbrAndRdngDate(accNbr, rdngDate);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -102,77 +109,125 @@ public class TmpReadingsService {
         }
     }
 
-    // Get readings by area code with active bill cycle filter (default behavior)
+    // Get readings by area code with active bill cycle filter (default behavior) - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAreaCd(String areaCd) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdWithActiveBillCycle(areaCd);
+            // Clean area code input
+            String cleanAreaCd = areaCd != null ? areaCd.trim() : "";
+            
+            // Get active bill cycle for the area
+            Optional<Integer> activeBillCycleOpt = billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(cleanAreaCd);
+            
+            if (!activeBillCycleOpt.isPresent()) {
+                System.out.println("DEBUG: No active bill cycle found for area " + cleanAreaCd);
+                return new ArrayList<>();
+            }
+            
+            // Convert integer bill cycle to string for comparison with added_blcy
+            Integer activeBillCycle = activeBillCycleOpt.get();
+            String activeBillCycleStr = String.valueOf(activeBillCycle);
+            
+            System.out.println("DEBUG: Area=" + cleanAreaCd + ", Active Bill Cycle=" + activeBillCycleStr);
+            
+            // Use native query with proper string comparison
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdAndBillCycle(cleanAreaCd, activeBillCycleStr);
+            
+            // Debug logging
+            System.out.println("DEBUG: Found " + readings.size() + " readings for area " + cleanAreaCd + " and bill cycle " + activeBillCycleStr);
+            
+            if (readings.isEmpty()) {
+                // Try alternative query using the active bill cycle filter
+                System.out.println("DEBUG: Trying alternative query for area " + cleanAreaCd);
+                readings = tmpReadingsRepository.findByAreaCdWithActiveBillCycle(cleanAreaCd);
+                System.out.println("DEBUG: Alternative query found " + readings.size() + " readings");
+            }
+            
             return readings.stream()
+                    .filter(reading -> reading != null)
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
+                    
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings by area code: " + e.getMessage(), e);
+            System.err.println("ERROR in getReadingsByAreaCd: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to retrieve readings by area code: " + areaCd + " - " + e.getMessage(), e);
         }
     }
     
-    // Get readings by area code without bill cycle filter
+    // Get readings by area code without bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAreaCdWithoutFilter(String areaCd) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCd(areaCd);
+            String cleanAreaCd = areaCd != null ? areaCd.trim() : "";
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCd(cleanAreaCd);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings by area code without filter: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve readings by area code without filter: " + areaCd + " - " + e.getMessage(), e);
         }
     }
     
-    // Get readings by area code and specific bill cycle (for historical data)
+    // Get readings by area code and specific bill cycle (for historical data) - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByAreaCdAndBillCycle(String areaCd, String billCycle) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdAndBillCycle(areaCd, billCycle);
+            String cleanAreaCd = areaCd != null ? areaCd.trim() : "";
+            String cleanBillCycle = billCycle != null ? billCycle.trim() : "";
+            
+            List<TmpReadings> readings = tmpReadingsRepository.findByAreaCdAndBillCycle(cleanAreaCd, cleanBillCycle);
+            
+            System.out.println("DEBUG: Area=" + cleanAreaCd + ", BillCycle=" + cleanBillCycle + ", Found=" + readings.size() + " readings");
+            
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
+                    
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings by area code and bill cycle: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve readings by area code and bill cycle: " + areaCd + ", " + billCycle + " - " + e.getMessage(), e);
         }
     }
 
-    // Get readings by meter number with active bill cycle filter
+    // Get readings by meter number with active bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByMtrNbr(String mtrNbr) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbrWithActiveBillCycle(mtrNbr);
+            String cleanMtrNbr = mtrNbr != null ? mtrNbr.trim() : "";
+            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbrWithActiveBillCycle(cleanMtrNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings by meter number: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve readings by meter number: " + mtrNbr + " - " + e.getMessage(), e);
         }
     }
     
-    // Get readings by meter number without filter
+    // Get readings by meter number without filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByMtrNbrWithoutFilter(String mtrNbr) {
         try {
-            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbr(mtrNbr);
+            String cleanMtrNbr = mtrNbr != null ? mtrNbr.trim() : "";
+            List<TmpReadings> readings = tmpReadingsRepository.findByMtrNbr(cleanMtrNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve readings by meter number without filter: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve readings by meter number without filter: " + mtrNbr + " - " + e.getMessage(), e);
         }
     }
 
-    // Get readings by date range with active bill cycle filter
+    // Get readings by date range with active bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByDateRange(Date startDate, Date endDate) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByDateRangeWithActiveBillCycle(startDate, endDate);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -180,12 +235,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get readings by date range without filter
+    // Get readings by date range without filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsByDateRangeWithoutFilter(Date startDate, Date endDate) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findByDateRange(startDate, endDate);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -193,12 +249,13 @@ public class TmpReadingsService {
         }
     }
 
-    // Get latest readings for account with active bill cycle filter
+    // Get latest readings for account with active bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getLatestReadingsByAccNbr(String accNbr) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findLatestReadingsByAccNbrWithActiveBillCycle(accNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -206,12 +263,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get latest readings for account without filter
+    // Get latest readings for account without filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getLatestReadingsByAccNbrWithoutFilter(String accNbr) {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findLatestReadingsByAccNbr(accNbr);
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -219,30 +277,36 @@ public class TmpReadingsService {
         }
     }
     
-    // Get active bill cycle for an area
+    // Get active bill cycle for area - FIXED
     @Transactional(readOnly = true)
     public Optional<Integer> getActiveBillCycleForArea(String areaCd) {
         try {
-            return billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCode(areaCd);
+            String cleanAreaCd = areaCd != null ? areaCd.trim() : "";
+            return billCycleConfigRepository.findMaxActiveBillCycleNumberByAreaCodeTrimmed(cleanAreaCd);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve active bill cycle for area: " + e.getMessage(), e);
+            return Optional.empty();
         }
     }
 
-    // Get specific reading
+    // Get specific reading - FIXED
     @Transactional(readOnly = true)
     public Optional<TmpReadingsDTO> getSpecificReading(String accNbr, String areaCd, String addedBlcy, 
                                                       Integer mtrSeq, String mtrType, Date rdngDate) {
         try {
+            String cleanAccNbr = accNbr != null ? accNbr.trim() : "";
+            String cleanAreaCd = areaCd != null ? areaCd.trim() : "";
+            String cleanAddedBlcy = addedBlcy != null ? addedBlcy.trim() : "";
+            String cleanMtrType = mtrType != null ? mtrType.trim() : "";
+            
             Optional<TmpReadings> reading = tmpReadingsRepository.findSpecificReading(
-                accNbr, areaCd, addedBlcy, mtrSeq, mtrType, rdngDate);
+                cleanAccNbr, cleanAreaCd, cleanAddedBlcy, mtrSeq, cleanMtrType, rdngDate);
             return reading.map(this::convertToDTO);
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve specific reading: " + e.getMessage(), e);
         }
     }
 
-    // Create new reading
+    // Create new reading - FIXED
     @Transactional
     public TmpReadingsDTO createReading(TmpReadingsDTO readingDTO) {
         try {
@@ -272,7 +336,7 @@ public class TmpReadingsService {
         }
     }
 
-    // Update existing reading
+    // Update existing reading - FIXED
     @Transactional
     public TmpReadingsDTO updateReading(TmpReadingsDTO readingDTO) {
         try {
@@ -309,12 +373,13 @@ public class TmpReadingsService {
         }
     }
 
-    // Get readings with errors with active bill cycle filter
+    // Get readings with errors with active bill cycle filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsWithErrors() {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findReadingsWithErrorsWithActiveBillCycle();
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -322,12 +387,13 @@ public class TmpReadingsService {
         }
     }
     
-    // Get readings with errors without filter
+    // Get readings with errors without filter - FIXED
     @Transactional(readOnly = true)
     public List<TmpReadingsDTO> getReadingsWithErrorsWithoutFilter() {
         try {
             List<TmpReadings> readings = tmpReadingsRepository.findReadingsWithErrors();
             return readings.stream()
+                    .filter(reading -> reading != null) // Add null filter
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -335,7 +401,7 @@ public class TmpReadingsService {
         }
     }
 
-    // Get distinct account numbers
+    // Get distinct account numbers - FIXED
     @Transactional(readOnly = true)
     public List<String> getDistinctAccNbrs() {
         try {
@@ -345,7 +411,7 @@ public class TmpReadingsService {
         }
     }
 
-    // Get distinct meter types
+    // Get distinct meter types - FIXED
     @Transactional(readOnly = true)
     public List<String> getDistinctMtrTypes() {
         try {
@@ -355,7 +421,7 @@ public class TmpReadingsService {
         }
     }
 
-    // Helper method to validate reading
+    // Helper method to validate reading - FIXED
     private void validateReading(TmpReadingsDTO readingDTO) {
         if (readingDTO.getAccNbr() == null || readingDTO.getAccNbr().trim().isEmpty()) {
             throw new RuntimeException("Account number is required");
@@ -377,28 +443,33 @@ public class TmpReadingsService {
         }
     }
 
-    // Helper method to update reading fields
+    // Helper method to update reading fields - FIXED
     private void updateReadingFields(TmpReadings reading, TmpReadingsDTO dto) {
-        if (dto.getInstId() != null) reading.setInstId(dto.getInstId());
+        if (dto.getInstId() != null) reading.setInstId(dto.getInstId().trim());
         if (dto.getPrvDate() != null) reading.setPrvDate(dto.getPrvDate());
         if (dto.getPrsntRdn() != null) reading.setPrsntRdn(dto.getPrsntRdn());
         if (dto.getPrvRdn() != null) reading.setPrvRdn(dto.getPrvRdn());
-        if (dto.getMtrNbr() != null) reading.setMtrNbr(dto.getMtrNbr());
+        if (dto.getMtrNbr() != null) reading.setMtrNbr(dto.getMtrNbr().trim());
         if (dto.getUnits() != null) reading.setUnits(dto.getUnits());
         if (dto.getRate() != null) reading.setRate(dto.getRate());
         if (dto.getComputedChg() != null) reading.setComputedChg(dto.getComputedChg());
         if (dto.getMntChg() != null) reading.setMntChg(dto.getMntChg());
-        if (dto.getAcode() != null) reading.setAcode(dto.getAcode());
+        if (dto.getAcode() != null) reading.setAcode(dto.getAcode().trim());
         if (dto.getMFactor() != null) reading.setMFactor(dto.getMFactor());
-        if (dto.getBillStat() != null) reading.setBillStat(dto.getBillStat());
+        if (dto.getBillStat() != null) reading.setBillStat(dto.getBillStat().trim());
         if (dto.getErrStat() != null) reading.setErrStat(dto.getErrStat());
-        if (dto.getMtrStat() != null) reading.setMtrStat(dto.getMtrStat());
-        if (dto.getRdnStat() != null) reading.setRdnStat(dto.getRdnStat());
-        if (dto.getUserId() != null) reading.setUserId(dto.getUserId());
+        if (dto.getMtrStat() != null) reading.setMtrStat(dto.getMtrStat().trim());
+        if (dto.getRdnStat() != null) reading.setRdnStat(dto.getRdnStat().trim());
+        if (dto.getUserId() != null) reading.setUserId(dto.getUserId().trim());
+        if (dto.getEditedUserId() != null) reading.setEditedUserId(dto.getEditedUserId().trim());
     }
 
-    // Convert Entity to DTO
+    // Convert Entity to DTO - FIXED
     private TmpReadingsDTO convertToDTO(TmpReadings reading) {
+        if (reading == null) {
+            return null;
+        }
+        
         TmpReadingsDTO dto = new TmpReadingsDTO();
         dto.setAccNbr(reading.getAccNbr());
         dto.setInstId(reading.getInstId());
@@ -428,35 +499,34 @@ public class TmpReadingsService {
         return dto;
     }
 
-    // Convert DTO to Entity
+    // Convert DTO to Entity - FIXED
     private TmpReadings convertToEntity(TmpReadingsDTO dto) {
         TmpReadings reading = new TmpReadings();
-        reading.setAccNbr(dto.getAccNbr());
-        reading.setInstId(dto.getInstId());
-        reading.setAreaCd(dto.getAreaCd());
-        reading.setAddedBlcy(dto.getAddedBlcy());
+        reading.setAccNbr(dto.getAccNbr() != null ? dto.getAccNbr().trim() : null);
+        reading.setInstId(dto.getInstId() != null ? dto.getInstId().trim() : null);
+        reading.setAreaCd(dto.getAreaCd() != null ? dto.getAreaCd().trim() : null);
+        reading.setAddedBlcy(dto.getAddedBlcy() != null ? dto.getAddedBlcy().trim() : null);
         reading.setMtrSeq(dto.getMtrSeq());
-        reading.setMtrType(dto.getMtrType());
+        reading.setMtrType(dto.getMtrType() != null ? dto.getMtrType().trim() : null);
         reading.setPrvDate(dto.getPrvDate());
         reading.setRdngDate(dto.getRdngDate());
         reading.setPrsntRdn(dto.getPrsntRdn());
         reading.setPrvRdn(dto.getPrvRdn());
-        reading.setMtrNbr(dto.getMtrNbr());
+        reading.setMtrNbr(dto.getMtrNbr() != null ? dto.getMtrNbr().trim() : null);
         reading.setUnits(dto.getUnits());
         reading.setRate(dto.getRate());
         reading.setComputedChg(dto.getComputedChg());
         reading.setMntChg(dto.getMntChg());
-        reading.setAcode(dto.getAcode());
+        reading.setAcode(dto.getAcode() != null ? dto.getAcode().trim() : null);
         reading.setMFactor(dto.getMFactor());
-        reading.setBillStat(dto.getBillStat());
+        reading.setBillStat(dto.getBillStat() != null ? dto.getBillStat().trim() : null);
         reading.setErrStat(dto.getErrStat());
-        reading.setMtrStat(dto.getMtrStat());
-        reading.setRdnStat(dto.getRdnStat());
-        reading.setUserId(dto.getUserId());
+        reading.setMtrStat(dto.getMtrStat() != null ? dto.getMtrStat().trim() : null);
+        reading.setRdnStat(dto.getRdnStat() != null ? dto.getRdnStat().trim() : null);
+        reading.setUserId(dto.getUserId() != null ? dto.getUserId().trim() : null);
         reading.setEnteredDtime(dto.getEnteredDtime());
-        reading.setEditedUserId(dto.getEditedUserId());
+        reading.setEditedUserId(dto.getEditedUserId() != null ? dto.getEditedUserId().trim() : null);
         reading.setEditedDtime(dto.getEditedDtime());
         return reading;
     }
-
 }

@@ -66,4 +66,46 @@ public class Bill_CycleLogFile {
             dateTime = LocalDateTime.now();
         }
     }
+
+    // Add trimming setters and getters for CHAR fields
+    public void setProCode(String proCode) {
+        this.proCode = proCode != null ? proCode.trim() : null;
+    }
+
+    public void setAreaCode(String areaCode) {
+        this.areaCode = areaCode != null ? areaCode.trim() : null;
+    }
+
+    public void setStartTime(String startTime) {
+        this.startTime = startTime != null ? startTime.trim() : null;
+    }
+
+    public void setEndTime(String endTime) {
+        this.endTime = endTime != null ? endTime.trim() : null;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId != null ? userId.trim() : null;
+    }
+
+    // Override getters to ensure trimmed values are returned
+    public String getProCode() {
+        return proCode != null ? proCode.trim() : null;
+    }
+
+    public String getAreaCode() {
+        return areaCode != null ? areaCode.trim() : null;
+    }
+
+    public String getStartTime() {
+        return startTime != null ? startTime.trim() : null;
+    }
+
+    public String getEndTime() {
+        return endTime != null ? endTime.trim() : null;
+    }
+
+    public String getUserId() {
+        return userId != null ? userId.trim() : null;
+    }
 }

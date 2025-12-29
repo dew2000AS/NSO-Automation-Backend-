@@ -9,7 +9,16 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 @Entity
-@Table(name = "mon_tot")
+@Table(
+        name = "mon_tot",
+        indexes = {
+                // Non-unique index on bill_cycle for faster filtering
+                @Index(name = "index_mon_tot_1", columnList = "bill_cycle"),
+
+                // Composite index on acc_nbr + bill_cycle (non-unique, since PK already enforces uniqueness)
+                @Index(name = "indx_mon_tot", columnList = "acc_nbr, bill_cycle")
+        }
+)
 @IdClass(MonTotId.class)
 @Data
 @NoArgsConstructor

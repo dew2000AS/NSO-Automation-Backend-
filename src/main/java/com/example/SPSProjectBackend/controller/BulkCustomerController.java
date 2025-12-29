@@ -6,6 +6,7 @@ import com.example.SPSProjectBackend.service.SecInfoAuthService;
 import com.example.SPSProjectBackend.service.HsbLocationService;
 import com.example.SPSProjectBackend.util.SessionUtils;
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
+import com.example.SPSProjectBackend.dto.HsbAreaDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -529,30 +530,78 @@ public class BulkCustomerController {
         }
     }
 
-    // Helper method to validate session and access
+    // UPDATED: Helper method to validate session and access
     private void validateSessionAndAccess(String sessionId, String userId, String targetRegionCode, String targetProvinceCode, String targetAreaCode) {
-        if (sessionId != null && userId != null) {
-            // Validate session
-            SecInfoLoginDTO.SessionValidationRequest validationRequest = new SecInfoLoginDTO.SessionValidationRequest();
-            validationRequest.setSessionId(sessionId);
-            validationRequest.setUserId(userId);
-            SecInfoLoginDTO.SessionValidationResponse validationResponse = secInfoAuthService.validateSession(validationRequest);
-            if (!validationResponse.getValid()) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired session");
-            }
+        if (sessionId != null && userId != null && !sessionId.isEmpty() && !userId.isEmpty()) {
+            try {
+                // Validate session
+                SecInfoLoginDTO.SessionValidationRequest validationRequest = new SecInfoLoginDTO.SessionValidationRequest();
+                validationRequest.setSessionId(sessionId);
+                validationRequest.setUserId(userId);
+                SecInfoLoginDTO.SessionValidationResponse validationResponse = secInfoAuthService.validateSession(validationRequest);
+                
+                if (!validationResponse.getValid()) {
+                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired session");
+                }
 
-            // If area-specific, validate access
-            if (targetAreaCode != null) {
-                Optional<com.example.SPSProjectBackend.dto.HsbAreaDTO> areaOpt = locationService.getAreaByCode(targetAreaCode);
-                if (areaOpt.isEmpty()) {
-                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Area not found");
+                // If area-specific, validate access - FIXED LOGIC
+                if (targetAreaCode != null) {
+                    Optional<HsbAreaDTO> areaOpt = locationService.getAreaByCode(targetAreaCode);
+                    if (areaOpt.isEmpty()) {
+                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Area not found");
+                    }
+                    
+                    HsbAreaDTO area = areaOpt.get();
+                    
+                    // Get user info from session validation response
+                    SecInfoLoginDTO.UserInfo userInfo = validationResponse.getUserInfo();
+                    if (userInfo != null) {
+                        boolean hasAccess = hasAreaAccessBasedOnUserCategory(userInfo, area.getRegion(), area.getProvCode(), targetAreaCode);
+                        if (!hasAccess) {
+                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this area");
+                        }
+                    } else {
+                        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User information not found in session");
+                    }
                 }
-                com.example.SPSProjectBackend.dto.HsbAreaDTO area = areaOpt.get();
-                boolean hasAccess = sessionUtils.hasAreaAccess(sessionId, userId, area.getRegion(), area.getProvCode(), targetAreaCode);
-                if (!hasAccess) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this area");
-                }
+            } catch (ResponseStatusException e) {
+                throw e; // Re-throw existing exceptions
+            } catch (Exception e) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Session validation error: " + e.getMessage());
             }
+        }
+        // If no session params provided, allow the request to proceed (for public endpoints or internal calls)
+    }
+
+    // NEW: Helper method to check area access based on user category
+    private boolean hasAreaAccessBasedOnUserCategory(SecInfoLoginDTO.UserInfo userInfo, String targetRegion, String targetProvince, String targetArea) {
+        String userCategory = userInfo.getUserCategory();
+        
+        if (userCategory == null) {
+            return false;
+        }
+        
+        switch (userCategory) {
+            case "Admin":
+                return true; // Admin has access to all areas
+                
+            case "Region User":
+                // Region users can access all areas in their region
+                return targetRegion != null && targetRegion.equals(userInfo.getRegionCode());
+                
+            case "Province User":
+                // Province users can access all areas in their province
+                return targetRegion != null && targetRegion.equals(userInfo.getRegionCode()) &&
+                       targetProvince != null && targetProvince.equals(userInfo.getProvinceCode());
+                
+            case "Area User":
+                // Area users can only access their specific area
+                return targetRegion != null && targetRegion.equals(userInfo.getRegionCode()) &&
+                       targetProvince != null && targetProvince.equals(userInfo.getProvinceCode()) &&
+                       targetArea != null && targetArea.equals(userInfo.getAreaCode());
+                
+            default:
+                return false;
         }
     }
 }

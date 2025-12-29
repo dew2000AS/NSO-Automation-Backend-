@@ -96,7 +96,8 @@ public class HsbLocationService {
     // Get areas by region and province
     public List<HsbAreaDTO> getAreasByRegionAndProvince(String regionCode, String provCode) {
         try {
-            List<HsbArea> areas = areaRepository.findByRegionAndProvince(regionCode, provCode);
+            // Use trimmed version for lookup
+            List<HsbArea> areas = areaRepository.findByRegionAndProvinceTrimmed(regionCode, provCode);
             return areas.stream()
                     .map(this::convertAreaToDTO)
                     .collect(Collectors.toList());
@@ -105,23 +106,60 @@ public class HsbLocationService {
         }
     }
 
-    // Get province by code
+    // Get province by code - USING TRIMMED VERSION
     public Optional<HsbProvinceDTO> getProvinceByCode(String provCode) {
         try {
-            Optional<HsbProvince> province = provinceRepository.findByProvCode(provCode);
+            // Use trimmed version for lookup
+            Optional<HsbProvince> province = provinceRepository.findByProvCodeTrimmed(provCode);
             return province.map(this::convertProvinceToDTO);
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve province " + provCode + ": " + e.getMessage(), e);
         }
     }
 
-    // Get area by code
+    // Get area by code - USING TRIMMED VERSION
     public Optional<HsbAreaDTO> getAreaByCode(String areaCode) {
         try {
-            Optional<HsbArea> area = areaRepository.findByAreaCode(areaCode);
+            // Use trimmed version for lookup
+            Optional<HsbArea> area = areaRepository.findByAreaCodeTrimmed(areaCode);
             return area.map(this::convertAreaToDTO);
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve area " + areaCode + ": " + e.getMessage(), e);
+        }
+    }
+
+    // Get area by code with province name - USING TRIMMED VERSION
+    public Optional<HsbAreaDTO> getAreaByCodeWithProvince(String areaCode) {
+        try {
+            // Use trimmed version for lookup
+            Optional<HsbArea> areaOpt = areaRepository.findByAreaCodeTrimmed(areaCode);
+            if (areaOpt.isPresent()) {
+                HsbArea area = areaOpt.get();
+                HsbAreaDTO areaDTO = convertAreaToDTO(area);
+                
+                // Get province name
+                Optional<HsbProvince> provinceOpt = provinceRepository.findByProvCodeTrimmed(area.getProvCode());
+                if (provinceOpt.isPresent()) {
+                    areaDTO.setProvinceName(provinceOpt.get().getProvName());
+                }
+                
+                return Optional.of(areaDTO);
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve area with province " + areaCode + ": " + e.getMessage(), e);
+        }
+    }
+
+    // Get multiple areas by codes - USING TRIMMED VERSIONS
+    public List<HsbAreaDTO> getAreasByCodes(List<String> areaCodes) {
+        try {
+            List<HsbArea> areas = areaRepository.findByAreaCodeIn(areaCodes);
+            return areas.stream()
+                    .map(this::convertAreaToDTO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve areas by codes: " + e.getMessage(), e);
         }
     }
 
@@ -166,11 +204,11 @@ public class HsbLocationService {
         );
     }
 
-    // Validation methods
+    // Validation methods - USING TRIMMED VERSIONS
     public boolean isValidRegion(String regionCode) {
         try {
             List<String> regions = getAllRegions();
-            return regions.contains(regionCode);
+            return regions.contains(regionCode != null ? regionCode.trim() : null);
         } catch (Exception e) {
             return false;
         }
@@ -178,7 +216,7 @@ public class HsbLocationService {
 
     public boolean isValidProvince(String provCode) {
         try {
-            return provinceRepository.existsByProvCode(provCode);
+            return provinceRepository.existsByProvCodeTrimmed(provCode);
         } catch (Exception e) {
             return false;
         }
@@ -186,7 +224,7 @@ public class HsbLocationService {
 
     public boolean isValidArea(String areaCode) {
         try {
-            return areaRepository.existsByAreaCode(areaCode);
+            return areaRepository.existsByAreaCodeTrimmed(areaCode);
         } catch (Exception e) {
             return false;
         }
@@ -207,6 +245,47 @@ public class HsbLocationService {
             return areas.stream().anyMatch(a -> a.getAreaCode().equals(areaCode));
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    // Get area name by code - USING TRIMMED VERSION
+    public String getAreaNameByCode(String areaCode) {
+        try {
+            Optional<HsbAreaDTO> areaOpt = getAreaByCode(areaCode);
+            return areaOpt.map(HsbAreaDTO::getAreaName).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Get province name by code - USING TRIMMED VERSION
+    public String getProvinceNameByCode(String provCode) {
+        try {
+            Optional<HsbProvinceDTO> provinceOpt = getProvinceByCode(provCode);
+            return provinceOpt.map(HsbProvinceDTO::getProvName).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Get areas for user based on their location access
+    public List<HsbAreaDTO> getAreasForUser(String userCategory, String userRegion, String userProvince, String userArea) {
+        try {
+            switch (userCategory) {
+                case "Admin":
+                    return getAllAreas();
+                case "Region User":
+                    return getAreasByRegion(userRegion);
+                case "Province User":
+                    return getAreasByProvince(userProvince);
+                case "Area User":
+                    Optional<HsbAreaDTO> areaOpt = getAreaByCode(userArea);
+                    return areaOpt.map(List::of).orElse(List.of());
+                default:
+                    return List.of();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get areas for user: " + e.getMessage(), e);
         }
     }
 }

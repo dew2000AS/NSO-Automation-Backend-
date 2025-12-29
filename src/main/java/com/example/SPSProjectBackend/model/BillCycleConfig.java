@@ -36,4 +36,22 @@ public class BillCycleConfig {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "area_code", referencedColumnName = "area_code", insertable = false, updatable = false)
     private HsbArea area;
+
+    // Add trimming setters and getters for CHAR fields
+    public void setAreaCode(String areaCode) {
+        this.areaCode = areaCode != null ? areaCode.trim() : null;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId != null ? userId.trim() : null;
+    }
+
+    // Override getters to ensure trimmed values are returned
+    public String getAreaCode() {
+        return areaCode != null ? areaCode.trim() : null;
+    }
+
+    public String getUserId() {
+        return userId != null ? userId.trim() : null;
+    }
 }

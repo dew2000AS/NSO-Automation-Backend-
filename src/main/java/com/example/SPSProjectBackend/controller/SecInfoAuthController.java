@@ -70,7 +70,7 @@ public class SecInfoAuthController {
                         if (response.getUserInfo().getRegionCode() != null) {
                             userInfo.put("region_code", response.getUserInfo().getRegionCode());
                         }
-                    } else if ("Province User".equals(userCategory)) {
+                    } else if ("Province User".equals(userCategory) || "Accountant Revenue".equals(userCategory)|| "Acc Assistance".equals(userCategory)||"Accountant Clark".equals(userCategory)) {
                         // Province users: region_code and province_code
                         if (response.getUserInfo().getRegionCode() != null) {
                             userInfo.put("region_code", response.getUserInfo().getRegionCode());
@@ -203,7 +203,7 @@ public class SecInfoAuthController {
                     if (response.getUserInfo().getRegionCode() != null) {
                         userInfo.put("region_code", response.getUserInfo().getRegionCode());
                     }
-                } else if ("Province User".equals(userCategory)) {
+                } else if ("Province User".equals(userCategory)|| "Accountant Revenue".equals(userCategory) || "Acc Assistance".equals(userCategory)||"Accountant Clark".equals(userCategory)) {
                     // Province users: region_code and province_code
                     if (response.getUserInfo().getRegionCode() != null) {
                         userInfo.put("region_code", response.getUserInfo().getRegionCode());
@@ -283,7 +283,7 @@ public class SecInfoAuthController {
                     if (userInfo.getRegionCode() != null) {
                         locationData.put("region_code", userInfo.getRegionCode());
                     }
-                } else if ("Province User".equals(userCategory)) {
+                } else if ("Province User".equals(userCategory)|| "Accountant Revenue".equals(userCategory)|| "Acc Assistance".equals(userCategory)||"Accountant Clark".equals(userCategory)) {
                     // Province users: region_code and province_code
                     if (userInfo.getRegionCode() != null) {
                         locationData.put("region_code", userInfo.getRegionCode());
