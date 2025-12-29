@@ -158,11 +158,27 @@ public class TmpAmndService {
                 if (billCycle == null || billCycle.trim().isEmpty()) {
                     throw new RuntimeException("Bill cycle is required for MON_TOT amendments");
                 }
-                Optional<MonTotDTO> monOpt = monTotService.getByAccNbrAndBillCycle(accNbr, billCycle);
-                if (monOpt.isPresent()) {
-                    Function<MonTotDTO, Object> monGetter = monTotFieldMap.get(fieldName);
-                    if (monGetter != null) {
-                        value = monGetter.apply(monOpt.get());
+                if (fieldName.equals("BF_BAL")) {
+                    // Special case for BF_BAL: Fetch crnt_bal from the latest existing MON_TOT record
+                    List<MonTotDTO> monList = monTotService.getByAccNbr(accNbr);
+                    if (!monList.isEmpty()) {
+                        MonTotDTO latest = monList.stream()
+                                .max(Comparator.comparing(dto -> Integer.parseInt(dto.getBillCycle())))
+                                .orElse(null);
+                        if (latest != null) {
+                            Function<MonTotDTO, Object> getter = monTotFieldMap.get("CRNT_BAL");
+                            if (getter != null) {
+                                value = getter.apply(latest);
+                            }
+                        }
+                    }
+                } else {
+                    Optional<MonTotDTO> monOpt = monTotService.getByAccNbrAndBillCycle(accNbr, billCycle);
+                    if (monOpt.isPresent()) {
+                        Function<MonTotDTO, Object> monGetter = monTotFieldMap.get(fieldName);
+                        if (monGetter != null) {
+                            value = monGetter.apply(monOpt.get());
+                        }
                     }
                 }
                 break;
