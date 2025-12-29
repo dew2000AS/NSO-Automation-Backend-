@@ -56,6 +56,9 @@ public class BillCycleService {
                     billCycles = getRegionBillCycles(userInfo.getRegionCode());
                     break;
                 case "Province User":
+                case "Accountant Revenue":
+                case "Acc Assistance":
+                case "Accountant Clark":
                     billCycles = getProvinceBillCycles(userInfo.getProvinceCode());
                     break;
                 case "Area User":

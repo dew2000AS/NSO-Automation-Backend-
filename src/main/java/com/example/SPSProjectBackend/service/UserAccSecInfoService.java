@@ -74,7 +74,7 @@ public class UserAccSecInfoService {
             if (userAccSecInfoDTO.getProvinceCode() != null || userAccSecInfoDTO.getAreaCode() != null) {
                 throw new RuntimeException("Region User should only have region code, not province or area codes");
             }
-        } else if ("Province User".equals(userCat)) {
+        } else if ("Province User".equals(userCat) || "Accountant Revenue".equals(userCat)||"Accountant Clark".equals(userCat)) {
             if (userAccSecInfoDTO.getRegionCode() == null || userAccSecInfoDTO.getRegionCode().trim().isEmpty()) {
                 throw new RuntimeException("Region code is required for Province User");
             }
@@ -233,7 +233,7 @@ public class UserAccSecInfoService {
             entity.setRegionCode(dto.getRegionCode());
             entity.setProvinceCode(null);
             entity.setAreaCode(null);
-        } else if ("Province User".equals(userCat)) {
+        } else if ("Province User".equals(userCat)|| "Accountant Revenue".equals(userCat)|| "Acc Assistance".equals(userCat)||"Accountant Clark".equals(userCat)) {
             entity.setRegionCode(dto.getRegionCode());
             entity.setProvinceCode(dto.getProvinceCode());
             entity.setAreaCode(null);
