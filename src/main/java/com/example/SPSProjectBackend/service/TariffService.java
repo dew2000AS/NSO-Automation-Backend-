@@ -277,6 +277,10 @@ public class TariffService {
     // ================================================================
     public List<TariffDTO> getAllActiveTariffs() {
         List<Tariff> tariffs = tariffRepository.findByToDateIsNull();
+
+        // ✅ Sort by tariff ID in ascending order (11, 13, 14, 15... 93)
+        tariffs.sort(Comparator.comparing(Tariff::getTariff));
+
         return tariffs.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -286,6 +290,10 @@ public class TariffService {
     // ================================================================
     public List<TariffDTO> getAllEndedTariffs() {
         List<Tariff> tariffs = tariffRepository.findByToDateIsNotNull();
+
+        // ✅ Sort by tariff ID to ensure consistent order
+        tariffs.sort(Comparator.comparing(Tariff::getTariff));
+
         return tariffs.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
@@ -408,6 +416,10 @@ public class TariffService {
         // ✅ STEP 2: Get ALL tmp_tariff records (both Active and Inactive)
         List<TmpTariff> allTmpTariffs = tmpTariffRepository.findAll();
         System.out.println("Found " + allTmpTariffs.size() + " tmp_tariff records to upload");
+
+        // ✅ Sort by tariff ID to ensure correct order in database
+        allTmpTariffs.sort(Comparator.comparing(TmpTariff::getTariff));
+        System.out.println("Sorted tmp_tariff records by tariff ID");
 
         // ✅ STEP 3: Create NEW tariff records from tmp_tariff (with block values)
         for (TmpTariff tmpTariff : allTmpTariffs) {
@@ -575,7 +587,11 @@ public class TariffService {
         List<TmpTariff> tmpTariffsToUpload = allTmpTariffs.stream()
             .filter(t -> tariffIdsToEnd.contains(t.getTariff()))
             .collect(Collectors.toList());
-        System.out.println("Uploading " + tmpTariffsToUpload.size() + " tmp_tariff records");
+
+        // ✅ Sort by tariff ID to ensure correct order in database
+        tmpTariffsToUpload.sort(Comparator.comparing(TmpTariff::getTariff));
+
+        System.out.println("Uploading " + tmpTariffsToUpload.size() + " tmp_tariff records in sorted order");
 
         // ✅ STEP 3: Create NEW tariff records WITH BLOCK VALUES from tmp_tariff
         for (TmpTariff tmpTariff : tmpTariffsToUpload) {

@@ -24,11 +24,28 @@ public class TariffReportService {
     @Autowired
     private TmpTariffService tmpTariffService;
 
+    // Cache compiled templates to avoid recompiling on every request
+    private static final Map<String, JasperReport> templateCache = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
-     * Generate PDF report for all active tariffs (where to_date IS NULL)
+     * Get or compile a JasperReport template from cache
+     */
+    private JasperReport getOrCompileTemplate(String templatePath) throws Exception {
+        return templateCache.computeIfAbsent(templatePath, path -> {
+            try (InputStream is = new ClassPathResource(path).getInputStream()) {
+                System.out.println("Compiling template: " + path);
+                return JasperCompileManager.compileReport(is);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to compile template: " + path, e);
+            }
+        });
+    }
+
+    /**
+     * Generate PDF report and return as byte array
      * Story 1.6: Enhanced categorized structure
      */
-    public void generateTariffPDF(HttpServletResponse response) throws Exception {
+    public byte[] generateTariffPDFBytes() throws Exception {
         System.out.println("=== Starting Categorized Tariff PDF Generation (Story 1.6) ===");
 
         // 1. Fetch active tariffs
@@ -75,37 +92,19 @@ public class TariffReportService {
 
         System.out.println("Created " + categorySections.size() + " category sections for report");
 
-        // 4. Load and compile main JRXML template (new categorized template)
-        ClassPathResource resource = new ClassPathResource("reports/tariff_categorized_report.jrxml");
-        InputStream jrxmlInput = resource.getInputStream();
-        JasperReport jasperReport = JasperCompileManager.compileReport(jrxmlInput);
-        System.out.println("Main categorized template compiled successfully");
+        // 4. Load and compile main JRXML template (using cache)
+        JasperReport jasperReport = getOrCompileTemplate("reports/tariff_categorized_report.jrxml");
+        System.out.println("Main categorized template ready");
 
-        // 5. Compile subreports (multiple ones for different category types)
+        // 5. Compile subreports (using cache for better performance)
         // Story 1.7: Compile detail subreports for nested table rows
-        ClassPathResource blocksDetailSubreport = new ClassPathResource("reports/domestic_blocks_detail.jrxml");
-        JasperReport blocksDetailJasper = JasperCompileManager.compileReport(blocksDetailSubreport.getInputStream());
-        System.out.println("Domestic blocks detail subreport compiled");
-
-        ClassPathResource tariffsDetailSubreport = new ClassPathResource("reports/other_consumers_tariffs_detail.jrxml");
-        JasperReport tariffsDetailJasper = JasperCompileManager.compileReport(tariffsDetailSubreport.getInputStream());
-        System.out.println("Other consumers tariffs detail subreport compiled");
-
-        ClassPathResource domesticSubreport = new ClassPathResource("reports/domestic_subreport.jrxml");
-        JasperReport domesticJasper = JasperCompileManager.compileReport(domesticSubreport.getInputStream());
-        System.out.println("Domestic subreport compiled");
-
-        ClassPathResource touSubreport = new ClassPathResource("reports/tou_subreport.jrxml");
-        JasperReport touJasper = JasperCompileManager.compileReport(touSubreport.getInputStream());
-        System.out.println("TOU subreport compiled");
-
-        ClassPathResource simpleBlocksSubreport = new ClassPathResource("reports/simple_blocks_subreport.jrxml");
-        JasperReport simpleBlocksJasper = JasperCompileManager.compileReport(simpleBlocksSubreport.getInputStream());
-        System.out.println("Simple blocks subreport compiled");
-
-        ClassPathResource otherConsumersSubreport = new ClassPathResource("reports/other_consumers_subreport.jrxml");
-        JasperReport otherConsumersJasper = JasperCompileManager.compileReport(otherConsumersSubreport.getInputStream());
-        System.out.println("Other consumers subreport compiled");
+        JasperReport blocksDetailJasper = getOrCompileTemplate("reports/domestic_blocks_detail.jrxml");
+        JasperReport tariffsDetailJasper = getOrCompileTemplate("reports/other_consumers_tariffs_detail.jrxml");
+        JasperReport domesticJasper = getOrCompileTemplate("reports/domestic_subreport.jrxml");
+        JasperReport touJasper = getOrCompileTemplate("reports/tou_subreport.jrxml");
+        JasperReport simpleBlocksJasper = getOrCompileTemplate("reports/simple_blocks_subreport.jrxml");
+        JasperReport otherConsumersJasper = getOrCompileTemplate("reports/other_consumers_subreport.jrxml");
+        System.out.println("All subreport templates ready");
 
         // 6. Prepare parameters
         Map<String, Object> params = new HashMap<>();
@@ -125,21 +124,35 @@ public class TariffReportService {
         System.out.println("Report filled successfully");
 
         // 9. Export to PDF
-        ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream();
-        JRPdfExporter exporter = new JRPdfExporter();
-        exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-        exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfOutputStream));
-        exporter.exportReport();
-        System.out.println("PDF exported successfully");
+        byte[] pdfBytes;
+        try (ByteArrayOutputStream pdfOutputStream = new ByteArrayOutputStream()) {
+            JRPdfExporter exporter = new JRPdfExporter();
+            exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+            exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfOutputStream));
+            exporter.exportReport();
+            System.out.println("PDF exported successfully");
 
-        // 10. Write to HTTP response
+            // 10. Return PDF as byte array
+            pdfBytes = pdfOutputStream.toByteArray();
+        }
+
+        System.out.println("=== Categorized PDF Generation Completed: " + pdfBytes.length + " bytes ===");
+        return pdfBytes;
+    }
+
+    /**
+     * Generate PDF report for all active tariffs (where to_date IS NULL)
+     * Legacy method that writes directly to HttpServletResponse
+     * @deprecated Use generateTariffPDFBytes() instead
+     */
+    @Deprecated
+    public void generateTariffPDF(HttpServletResponse response) throws Exception {
+        byte[] pdfBytes = generateTariffPDFBytes();
         String filename = "tariff_setup_" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".pdf";
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", "attachment; filename=" + filename);
-        response.getOutputStream().write(pdfOutputStream.toByteArray());
+        response.getOutputStream().write(pdfBytes);
         response.getOutputStream().flush();
-
-        System.out.println("=== Categorized PDF Generation Completed: " + filename + " ===");
     }
 
     /**
