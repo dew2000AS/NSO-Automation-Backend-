@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.util.Date;
 import java.util.Objects;
 
 @Data
@@ -17,7 +16,6 @@ public class TmpReadingsId implements Serializable {
     private String addedBlcy;
     private Integer mtrSeq;
     private String mtrType;
-    private Date rdngDate;
     
     @Override
     public boolean equals(Object o) {
@@ -28,12 +26,11 @@ public class TmpReadingsId implements Serializable {
                Objects.equals(areaCd, that.areaCd) &&
                Objects.equals(addedBlcy, that.addedBlcy) &&
                Objects.equals(mtrSeq, that.mtrSeq) &&
-               Objects.equals(mtrType, that.mtrType) &&
-               Objects.equals(rdngDate, that.rdngDate);
+               Objects.equals(mtrType, that.mtrType);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(accNbr, areaCd, addedBlcy, mtrSeq, mtrType, rdngDate);
+        return Objects.hash(accNbr, areaCd, addedBlcy, mtrSeq, mtrType);
     }
 }
