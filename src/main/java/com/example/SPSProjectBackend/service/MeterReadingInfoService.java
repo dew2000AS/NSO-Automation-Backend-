@@ -145,7 +145,7 @@ public class MeterReadingInfoService {
     }
 
     /**
-     * Get meter reading details for a customer
+     * Get meter reading details for a customer - UPDATED VERSION
      */
     private MeterReadingInfoDetailsDTO getMeterReadingDetails(BulkCustomer customer, String areaCode, String billCycle) {
         MeterReadingInfoDetailsDTO dto = new MeterReadingInfoDetailsDTO();
@@ -200,14 +200,14 @@ public class MeterReadingInfoService {
                 dto.setMeterSequence(tempReadings.get(0).getMtrSeq());
             }
 
-            // Get charges from tmp_mon_tot
+            // ==== FIXED SECTION: Get charges from tmp_mon_tot ====
             Optional<TmpMonTot> tmpMonTotOpt = tmpMonTotRepository.findByAccNbrAndBillCycle(customer.getAccNbr(), billCycle);
             if (tmpMonTotOpt.isPresent()) {
                 TmpMonTot tmpMonTot = tmpMonTotOpt.get();
-                dto.setFixedCharge(tmpMonTot.getFixedChg());
-                dto.setMonthlyCharge(tmpMonTot.getTotCharge());
-                dto.setVatAmount(tmpMonTot.getTotGst());
-                dto.setTotalAmount(tmpMonTot.getTotAmt());
+                dto.setFixedCharge(tmpMonTot.getFixedChg() != null ? tmpMonTot.getFixedChg() : BigDecimal.ZERO);
+                dto.setMonthlyCharge(tmpMonTot.getTotCharge() != null ? tmpMonTot.getTotCharge() : BigDecimal.ZERO);
+                dto.setVatAmount(tmpMonTot.getTotGst() != null ? tmpMonTot.getTotGst() : BigDecimal.ZERO);
+                dto.setTotalAmount(tmpMonTot.getTotAmt() != null ? tmpMonTot.getTotAmt() : BigDecimal.ZERO);
             } else {
                 // Set default values if no tmp_mon_tot record found
                 dto.setFixedCharge(BigDecimal.ZERO);
@@ -216,13 +216,31 @@ public class MeterReadingInfoService {
                 dto.setTotalAmount(BigDecimal.ZERO);
             }
 
-            // Get BF Balance from mon_tot
-            Optional<MonTot> monTotOpt = monTotRepository.findByAccNbrAndBillCycle(customer.getAccNbr(), billCycle);
-            if (monTotOpt.isPresent()) {
-                dto.setBfBalance(monTotOpt.get().getBfBal());
-            } else {
+            // ==== FIXED SECTION: Get BF Balance from mon_tot of previous bill cycle ====
+            try {
+                Integer currentBillCycleInt = Integer.parseInt(billCycle);
+                Integer previousBillCycleInt = currentBillCycleInt - 1;
+                String previousBillCycle = String.valueOf(previousBillCycleInt);
+                
+                // Get crnt_bal from previous bill cycle (not bf_bal from current cycle)
+                Optional<MonTot> previousMonTotOpt = monTotRepository.findByAccNbrAndBillCycle(
+                    customer.getAccNbr(), previousBillCycle);
+                
+                if (previousMonTotOpt.isPresent()) {
+                    // Use crnt_bal from previous cycle as B/F Balance
+                    MonTot previousMonTot = previousMonTotOpt.get();
+                    BigDecimal bfBalance = previousMonTot.getCrntBal() != null ? 
+                        previousMonTot.getCrntBal() : BigDecimal.ZERO;
+                    dto.setBfBalance(bfBalance);
+                } else {
+                    // No previous bill cycle record found
+                    dto.setBfBalance(BigDecimal.ZERO);
+                }
+            } catch (NumberFormatException e) {
+                // Invalid bill cycle format
                 dto.setBfBalance(BigDecimal.ZERO);
             }
+            
         } else {
             // No readings - set empty values
             dto.setMeterTypes(new ArrayList<>());

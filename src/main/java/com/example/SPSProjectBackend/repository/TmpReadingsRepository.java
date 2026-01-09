@@ -268,4 +268,23 @@ List<TmpReadings> findByAreaCdAndBillCycle(@Param("areaCd") String areaCd, @Para
                    "AND TRIM(t.added_blcy) = TRIM(:billCycle)", 
            nativeQuery = true)
     Long countByAreaCdAndBillCycleNative(@Param("areaCd") String areaCd, @Param("billCycle") String billCycle);
+
+    /**
+ * Find readings by account number, area code, bill cycle, and meter type
+ */
+@Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND TRIM(t.areaCd) = TRIM(:areaCd) AND TRIM(t.addedBlcy) = TRIM(:billCycle) AND TRIM(t.mtrType) = TRIM(:mtrType)")
+List<TmpReadings> findByAccNbrAndAreaCdAndAddedBlcyAndMtrType(
+    @Param("accNbr") String accNbr, 
+    @Param("areaCd") String areaCd, 
+    @Param("billCycle") String billCycle, 
+    @Param("mtrType") String mtrType);
+
+/**
+ * Find all readings by account number, area code, and bill cycle for all meter types
+ */
+@Query("SELECT t FROM TmpReadings t WHERE t.accNbr = :accNbr AND TRIM(t.areaCd) = TRIM(:areaCd) AND TRIM(t.addedBlcy) = TRIM(:billCycle)")
+List<TmpReadings> findAllByAccNbrAndAreaCdAndAddedBlcy(
+    @Param("accNbr") String accNbr, 
+    @Param("areaCd") String areaCd, 
+    @Param("billCycle") String billCycle);
 }

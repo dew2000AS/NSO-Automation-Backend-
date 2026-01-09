@@ -47,7 +47,6 @@ public class TmpReadings {
     @Temporal(TemporalType.DATE)
     private Date prvDate;
     
-    @Id
     @Column(name = "rdng_date", nullable = false)
     @Temporal(TemporalType.DATE)
     private Date rdngDate;
