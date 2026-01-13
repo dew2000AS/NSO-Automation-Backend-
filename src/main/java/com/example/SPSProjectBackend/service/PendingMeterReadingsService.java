@@ -206,17 +206,42 @@ public class PendingMeterReadingsService {
                 System.out.println("No meter details found for installation ID: " + customer.getInstId());
             }
 
-            // Get B/F Balance from mon_tot
-            Optional<MonTot> monTotOpt = monTotRepository.findByAccNbrAndBillCycle(customer.getAccNbr(), billCycle);
-            if (monTotOpt.isPresent()) {
-                BigDecimal bfBalance = monTotOpt.get().getCrntBal();
-                dto.setBfBalance(bfBalance != null ? bfBalance : BigDecimal.ZERO);
-            } else {
+            // ==== FIXED SECTION: Get B/F Balance from PREVIOUS bill cycle ====
+            try {
+                // Convert current bill cycle to integer
+                Integer currentBillCycleInt = Integer.parseInt(billCycle);
+                
+                // Calculate previous bill cycle (current - 1)
+                Integer previousBillCycleInt = currentBillCycleInt - 1;
+                String previousBillCycle = String.valueOf(previousBillCycleInt);
+                
+                // Get crnt_bal from PREVIOUS bill cycle's mon_tot record
+                Optional<MonTot> previousMonTotOpt = monTotRepository.findByAccNbrAndBillCycle(
+                    customer.getAccNbr(), previousBillCycle);
+                
+                if (previousMonTotOpt.isPresent()) {
+                    // Use crnt_bal from previous cycle as B/F Balance
+                    MonTot previousMonTot = previousMonTotOpt.get();
+                    BigDecimal bfBalance = previousMonTot.getCrntBal() != null ? 
+                        previousMonTot.getCrntBal() : BigDecimal.ZERO;
+                    dto.setBfBalance(bfBalance);
+                    System.out.println("Found B/F Balance for account " + customer.getAccNbr() + 
+                        ": previous cycle " + previousBillCycle + " crnt_bal = " + bfBalance);
+                } else {
+                    // No previous bill cycle record found - set to zero
+                    dto.setBfBalance(BigDecimal.ZERO);
+                    System.out.println("No previous mon_tot record found for account: " + 
+                        customer.getAccNbr() + ", previous bill cycle: " + previousBillCycle);
+                }
+            } catch (NumberFormatException e) {
+                // Invalid bill cycle format
                 dto.setBfBalance(BigDecimal.ZERO);
-                System.out.println("No mon_tot record found for account: " + customer.getAccNbr() + ", bill cycle: " + billCycle);
+                System.err.println("Invalid bill cycle format: " + billCycle);
             }
+            
         } catch (Exception e) {
-            System.err.println("Error getting meter sequence and balance for customer " + customer.getAccNbr() + ": " + e.getMessage());
+            System.err.println("Error getting meter sequence and balance for customer " + 
+                customer.getAccNbr() + ": " + e.getMessage());
             e.printStackTrace();
             dto.setMeterSequence(0);
             dto.setBfBalance(BigDecimal.ZERO);
