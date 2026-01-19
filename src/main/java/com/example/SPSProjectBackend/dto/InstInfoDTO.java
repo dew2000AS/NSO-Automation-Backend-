@@ -2,16 +2,15 @@ package com.example.SPSProjectBackend.dto;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.util.Date;  // Changed to java.util.Date
 import java.sql.Timestamp;
 
 @Getter
 @Setter
 public class InstInfoDTO {
     private String instId;
-    private Date dateCnnct;
+    private Date dateCnnct;  // Now java.util.Date
     private Short mtrSet;
     private Short nbrMet;
     private String custNum;

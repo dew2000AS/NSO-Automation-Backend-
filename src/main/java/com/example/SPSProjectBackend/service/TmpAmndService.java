@@ -1,10 +1,14 @@
 package com.example.SPSProjectBackend.service;
+
 import com.example.SPSProjectBackend.dto.*;
 import com.example.SPSProjectBackend.model.AmndType;
 import com.example.SPSProjectBackend.model.TmpAmnd;
 import com.example.SPSProjectBackend.model.TmpAmndPk;
+import com.example.SPSProjectBackend.model.HistAmnd;
+import com.example.SPSProjectBackend.model.HistAmndPk;
 import com.example.SPSProjectBackend.repository.AmndTypeRepository;
 import com.example.SPSProjectBackend.repository.TmpAmndRepository;
+import com.example.SPSProjectBackend.repository.HistAmndRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
@@ -13,8 +17,10 @@ import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 @Service
 public class TmpAmndService {
     @Autowired
@@ -34,6 +40,8 @@ public class TmpAmndService {
     private LoanMasterService loanMasterService;
     @Autowired
     private NetmeterService netmeterService;
+    @Autowired
+    private HistAmndRepository histAmndRepository;
     // NEW: Field maps for each table (using DTO getters)
     private Map<String, Function<BulkCustomerDTO, Object>> customerFieldMap;
     private Map<String, Function<MonTotDTO, Object>> monTotFieldMap;
@@ -41,6 +49,12 @@ public class TmpAmndService {
     private Map<String, Function<InstInfoDTO, Object>> instInfoFieldMap;
     private Map<String, Function<LoanMasterDTO, Object>> loanMasterFieldMap;
     private Map<String, Function<NetmeterDTO, Object>> netmeterFieldMap;
+    private Map<String, BiConsumer<BulkCustomerDTO, Object>> customerSetterMap;
+    private Map<String, BiConsumer<MonTotDTO, Object>> monTotSetterMap;
+    private Map<String, BiConsumer<MtrDetailDTO, Object>> mtrDetailSetterMap;
+    private Map<String, BiConsumer<InstInfoDTO, Object>> instInfoSetterMap;
+    private Map<String, BiConsumer<LoanMasterDTO, Object>> loanMasterSetterMap;
+    private Map<String, BiConsumer<NetmeterDTO, Object>> netmeterSetterMap;
     @PostConstruct
     private void initFieldMaps() {
         // Customer fields
@@ -133,6 +147,96 @@ public class TmpAmndService {
         netmeterFieldMap.put("PERIOD1", NetmeterDTO::getPeriod1);
         netmeterFieldMap.put("PERIOD2", NetmeterDTO::getPeriod2);
         netmeterFieldMap.put("RATE3", NetmeterDTO::getRate3);
+        // Customer setters (assuming DTO field types based on common usage; adjust if needed)
+        customerSetterMap = new HashMap<>();
+        customerSetterMap.put("AREA_CD", (dto, val) -> dto.setAreaCd((String) val));
+        customerSetterMap.put("TARIFF", (dto, val) -> dto.setTariff((String) val));
+        customerSetterMap.put("AGRMNT_NO", (dto, val) -> dto.setAgrmntNo((String) val));
+        customerSetterMap.put("CST_ST", (dto, val) -> dto.setCstSt(Integer.parseInt((String) val)));
+        customerSetterMap.put("NO_LOANS", (dto, val) -> dto.setNoLoans(((BigDecimal) val).intValue())); // Assuming Integer in DTO
+        customerSetterMap.put("TOT_SEC_DEP", (dto, val) -> dto.setTotSecDep((BigDecimal) val));
+        customerSetterMap.put("WLK_ORD", (dto, val) -> dto.setWlkOrd((String) val));
+        customerSetterMap.put("DEPOSIT_AMT", (dto, val) -> dto.setDepositAmt((BigDecimal) val));
+        customerSetterMap.put("EST_AMNT", (dto, val) -> dto.setEstAmnt((BigDecimal) val));
+        customerSetterMap.put("ADD_DEP_AMT", (dto, val) -> dto.setAddDepAmt((BigDecimal) val));
+        customerSetterMap.put("IND_TYPE", (dto, val) -> dto.setIndType((String) val));
+        customerSetterMap.put("TEL_NBR", (dto, val) -> dto.setTelNbr((String) val));
+        customerSetterMap.put("DEP_DATE", (dto, val) -> dto.setDepDate((java.util.Date) val)); // Date
+        customerSetterMap.put("DEP_PIV_NBR", (dto, val) -> dto.setDepPivNbr((String) val));
+        customerSetterMap.put("CUS_CAT", (dto, val) -> dto.setCusCat((String) val));
+        customerSetterMap.put("GST_APL", (dto, val) -> dto.setGstApl((String) val));
+        customerSetterMap.put("TAX_INV", (dto, val) -> dto.setTaxInv((String) val));
+        customerSetterMap.put("AUTH_LETTER", (dto, val) -> dto.setAuthLetter((String) val));
+        customerSetterMap.put("TAX_NUM", (dto, val) -> dto.setTaxNum((String) val));
+        customerSetterMap.put("CUST_CD", (dto, val) -> dto.setCustCd((String) val));
+        customerSetterMap.put("CUST_TYPE", (dto, val) -> dto.setCustType((String) val));
+        customerSetterMap.put("NET_TYPE", (dto, val) -> dto.setNetType((String) val));
+        customerSetterMap.put("CAT_CODE", (dto, val) -> dto.setCatCode((String) val));
+        customerSetterMap.put("CNTR_DMND", (dto, val) -> dto.setCntrDmnd((BigDecimal) val));
+        // MON_TOT setters (assuming BigDecimal for all numeric fields)
+        monTotSetterMap = new HashMap<>();
+        monTotSetterMap.put("BF_BAL", (dto, val) -> dto.setBfBal((BigDecimal) val));
+        monTotSetterMap.put("TOT_UNTSKWO", (dto, val) -> dto.setTotUntsKwo((BigDecimal) val));
+        monTotSetterMap.put("TOT_UNTSKWD", (dto, val) -> dto.setTotUntsKwd((BigDecimal) val));
+        monTotSetterMap.put("TOT_UNTSKWP", (dto, val) -> dto.setTotUntsKwp((BigDecimal) val));
+        monTotSetterMap.put("TOT_KVA", (dto, val) -> dto.setTotKva((BigDecimal) val));
+        monTotSetterMap.put("TOT_KWOCHG", (dto, val) -> dto.setTotKwoChg((BigDecimal) val));
+        monTotSetterMap.put("TOT_KWDCHG", (dto, val) -> dto.setTotKwdChg((BigDecimal) val));
+        monTotSetterMap.put("TOT_KWPCHG", (dto, val) -> dto.setTotKwpChg((BigDecimal) val));
+        monTotSetterMap.put("TOT_KVACHG", (dto, val) -> dto.setTotKvaChg((BigDecimal) val));
+        monTotSetterMap.put("TOT_CHARGE", (dto, val) -> dto.setTotCharge((BigDecimal) val));
+        monTotSetterMap.put("FIXED_CHG", (dto, val) -> dto.setFixedChg((BigDecimal) val));
+        monTotSetterMap.put("TOT_GST", (dto, val) -> dto.setTotGst((BigDecimal) val));
+        monTotSetterMap.put("TOT_AMT", (dto, val) -> dto.setTotAmt((BigDecimal) val));
+        monTotSetterMap.put("DEBT_TOT", (dto, val) -> dto.setDebtTot((BigDecimal) val));
+        monTotSetterMap.put("CRDT_TOT", (dto, val) -> dto.setCrdtTot((BigDecimal) val));
+        monTotSetterMap.put("PAY_TOT", (dto, val) -> dto.setPayTot((BigDecimal) val));
+        monTotSetterMap.put("CRNT_BAL", (dto, val) -> dto.setCrntBal((BigDecimal) val));
+        // MTR_DETAIL setters
+        mtrDetailSetterMap = new HashMap<>();
+        mtrDetailSetterMap.put("MTR_NBR", (dto, val) -> dto.setMtrNbr((String) val));
+        mtrDetailSetterMap.put("MTR_TYPE", (dto, val) -> dto.setMtrType((String) val));
+        mtrDetailSetterMap.put("NO_OF_PHASES", (dto, val) -> dto.setNoOfPhases((String) val));
+        mtrDetailSetterMap.put("PRSNT_RDN", (dto, val) -> dto.setPrsntRdn(Integer.parseInt((String) val)));
+        mtrDetailSetterMap.put("CT_RATIO", (dto, val) -> dto.setCtRatio((String) val));
+        mtrDetailSetterMap.put("MTR_RATIO", (dto, val) -> dto.setMtrRatio((String) val));
+        mtrDetailSetterMap.put("M_FACTOR", (dto, val) -> dto.setMFactor((BigDecimal) val));
+        mtrDetailSetterMap.put("AVG_CNSP_3", (dto, val) -> dto.setAvgCnsp3((BigDecimal) val));
+        mtrDetailSetterMap.put("AVG_CNSP_6", (dto, val) -> dto.setAvgCnsp6((BigDecimal) val));
+        mtrDetailSetterMap.put("AVG_CNSP_12", (dto, val) -> dto.setAvgCnsp12((BigDecimal) val));
+        // INST_INFO setters
+        instInfoSetterMap = new HashMap<>();
+        instInfoSetterMap.put("TR_CB", (dto, val) -> dto.setTrCb((String) val));
+        instInfoSetterMap.put("TYPE_MET", (dto, val) -> dto.setTypeMet((String) val));
+        instInfoSetterMap.put("TRPNL_VOLT", (dto, val) -> dto.setTrpnlVolt((BigDecimal) val));
+        instInfoSetterMap.put("TRPNL_AMPS", (dto, val) -> dto.setTrpnlAmps((BigDecimal) val));
+        instInfoSetterMap.put("MTR_SET", (dto, val) -> dto.setMtrSet(Short.parseShort((String) val)));
+        instInfoSetterMap.put("NBR_MET", (dto, val) -> dto.setNbrMet(((BigDecimal) val).shortValue()));
+        // LOAN_MAS setters
+        loanMasterSetterMap = new HashMap<>();
+        loanMasterSetterMap.put("LN_ST", (dto, val) -> dto.setActiveSt((String) val));
+        loanMasterSetterMap.put("INST_AMT", (dto, val) -> dto.setMonPmnt((BigDecimal) val));
+        loanMasterSetterMap.put("LN_BAL", (dto, val) -> dto.setLoanAmt((BigDecimal) val));
+        loanMasterSetterMap.put("LOAN_TYPE", (dto, val) -> dto.setLoanType((String) val));
+        loanMasterSetterMap.put("NO_MONTHS", (dto, val) -> dto.setNoMonths(((BigDecimal) val).shortValue()));
+        loanMasterSetterMap.put("ST_BILL_CYCLE", (dto, val) -> dto.setStBillCycle(((BigDecimal) val).shortValue()));
+        loanMasterSetterMap.put("END_BILL_CYCLE", (dto, val) -> dto.setEndBillCycle(((BigDecimal) val).shortValue()));
+        loanMasterSetterMap.put("INT_RATE", (dto, val) -> dto.setIntRate((BigDecimal) val));
+        // NETMETER setters
+        netmeterSetterMap = new HashMap<>();
+        netmeterSetterMap.put("SETOFF", (dto, val) -> dto.setSetoff((String) val));
+        netmeterSetterMap.put("SCHM", (dto, val) -> dto.setSchm((String) val));
+        netmeterSetterMap.put("GEN_CAP", (dto, val) -> dto.setGenCap((BigDecimal) val));
+        netmeterSetterMap.put("RATE1", (dto, val) -> dto.setRate1((BigDecimal) val));
+        netmeterSetterMap.put("AGRMNT_DATE", (dto, val) -> dto.setAgrmntDate((java.util.Date) val)); // Date
+        netmeterSetterMap.put("BF_UNITS", (dto, val) -> dto.setBfUnits(Integer.parseInt((String) val)));
+        netmeterSetterMap.put("AVG_IMP", (dto, val) -> dto.setAvgImp(Integer.parseInt((String) val)));
+        netmeterSetterMap.put("AVG_EXP", (dto, val) -> dto.setAvgExp(Integer.parseInt((String) val)));
+        netmeterSetterMap.put("NET_TYPE", (dto, val) -> dto.setNetType((String) val));
+        netmeterSetterMap.put("RATE2", (dto, val) -> dto.setRate2((BigDecimal) val));
+        netmeterSetterMap.put("PERIOD1", (dto, val) -> dto.setPeriod1(((BigDecimal) val).shortValue()));
+        netmeterSetterMap.put("PERIOD2", (dto, val) -> dto.setPeriod2(((BigDecimal) val).shortValue()));
+        netmeterSetterMap.put("RATE3", (dto, val) -> dto.setRate3((BigDecimal) val));
     }
     // NEW: Method to get old value using single logic
     public String getOldValue(String accNbr, String amdType, String billCycle) {
@@ -324,6 +428,200 @@ public class TmpAmndService {
         entity.setEditedDtime(new Timestamp(System.currentTimeMillis()));
         tmpAmndRepository.save(entity);
     }
+    public void finalPost(String accNbr, String amdType, Short effctBlcy) {
+        TmpAmndPk pk = new TmpAmndPk(accNbr, amdType, effctBlcy);
+        Optional<TmpAmnd> optional = tmpAmndRepository.findById(pk);
+        if (!optional.isPresent()) {
+            throw new RuntimeException("Amendment not found with key: " + accNbr + ", " + amdType + ", " + effctBlcy);
+        }
+        TmpAmnd tmp = optional.get();
+        if (!"2".equals(tmp.getStatus())) {
+            throw new RuntimeException("Amendment must be in posted status (2) to archive to history.");
+        }
+        // Get AmndType and dt_type
+        Optional<AmndType> amndTypeOpt = amndTypeRepository.findById(amdType);
+        if (amndTypeOpt.isEmpty()) {
+            throw new RuntimeException("Amendment type not found: " + amdType);
+        }
+        AmndType amndType = amndTypeOpt.get();
+        String dtType = amndType.getDtType();
+        // Get old value (use effctBlcy as billCycle if needed)
+        String billCycle = effctBlcy != null ? effctBlcy.toString() : null;
+        String oldValueStr = getOldValue(accNbr, amdType, billCycle);
+        // Prepare old and new values based on dt_type
+        BigDecimal oldNmrValue = null;
+        String oldChrValue = null;
+        BigDecimal newNmrValue = null;
+        String newChrValue = null;
+        if ("N".equals(dtType)) {
+            oldNmrValue = oldValueStr != null ? new BigDecimal(oldValueStr) : null;
+            newNmrValue = tmp.getNmrValue();
+        } else {
+            oldChrValue = oldValueStr;
+            newChrValue = tmp.getChrValue();
+        }
+        // Create HistAmnd
+        HistAmnd hist = new HistAmnd();
+        HistAmndPk histPk = new HistAmndPk(accNbr, amdType, String.format("%03d", effctBlcy));
+        hist.setId(histPk);
+        hist.setAddedBlcy(tmp.getAddedBlcy() != null ? String.format("%03d", tmp.getAddedBlcy()) : null);
+        hist.setEffctDate(tmp.getEffctDate());
+        hist.setOldNmrValue(oldNmrValue);
+        hist.setNewNmrValue(newNmrValue);
+        hist.setOldChrValue(oldChrValue);
+        hist.setNewChrValue(newChrValue);
+        hist.setAmauthCode(tmp.getAmauthCode());
+        hist.setUserId(tmp.getUserId());
+        hist.setEnteredDtime(tmp.getEnteredDtime());
+        hist.setEditedUserId(tmp.getEditedUserId());
+        hist.setEditedDtime(tmp.getEditedDtime());
+        // Save to history
+        histAmndRepository.save(hist);
+        // NEW: Update the target table with new value
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        Object newVal;
+        if ("N".equals(dtType)) {
+            newVal = tmp.getNmrValue();
+        } else if ("D".equals(dtType)) {
+            try {
+                newVal = sdf.parse(tmp.getChrValue());
+            } catch (ParseException e) {
+                throw new RuntimeException("Invalid date format for new value: " + tmp.getChrValue(), e);
+            }
+        } else {
+            newVal = tmp.getChrValue();
+        }
+        // Normalize newVal to expected type
+        if ("N".equals(dtType)) {
+            if (!(newVal instanceof BigDecimal)) {
+                newVal = new BigDecimal(newVal.toString());
+            }
+        } else if ("D".equals(dtType)) {
+            if (!(newVal instanceof java.util.Date)) {
+                try {
+                    newVal = sdf.parse(newVal.toString());
+                } catch (ParseException e) {
+                    throw new RuntimeException("Invalid date format for new value: " + newVal, e);
+                }
+            }
+        } else {
+            newVal = newVal.toString();
+        }
+        String uptblName = amndType.getUptblName();
+        String fieldName = amndType.getFieldName();
+        switch (uptblName) {
+            case "CUSTOMER":
+                Optional<BulkCustomerDTO> custOpt = bulkCustomerService.getCustomerByAccNbr(accNbr);
+                if (custOpt.isPresent()) {
+                    BulkCustomerDTO custDto = custOpt.get();
+                    BiConsumer<BulkCustomerDTO, Object> custSetter = customerSetterMap.get(fieldName);
+                    if (custSetter != null) {
+                        custSetter.accept(custDto, newVal);
+                        bulkCustomerService.updateCustomer(accNbr, custDto);
+                    } else {
+                        throw new RuntimeException("No setter found for field: " + fieldName + " in CUSTOMER");
+                    }
+                } else {
+                    throw new RuntimeException("Customer not found for accNbr: " + accNbr);
+                }
+                break;
+            case "MON_TOT":
+                String billCycleStr = String.format("%03d", effctBlcy);
+                Optional<MonTotDTO> monOpt = monTotService.getByAccNbrAndBillCycle(accNbr, billCycleStr);
+                if (monOpt.isPresent()) {
+                    MonTotDTO monDto = monOpt.get();
+                    BiConsumer<MonTotDTO, Object> monSetter = monTotSetterMap.get(fieldName);
+                    if (monSetter != null) {
+                        monSetter.accept(monDto, newVal);
+                        monTotService.updateMonTot(accNbr, billCycleStr, monDto);
+                    } else {
+                        throw new RuntimeException("No setter found for field: " + fieldName + " in MON_TOT");
+                    }
+                } else {
+                    throw new RuntimeException("MonTot not found for accNbr: " + accNbr + ", billCycle: " + billCycleStr);
+                }
+                break;
+            case "MTR_DETAIL":
+                Optional<BulkCustomerDTO> custOptMtr = bulkCustomerService.getCustomerByAccNbr(accNbr);
+                if (custOptMtr.isPresent() && custOptMtr.get().getInstId() != null) {
+                    String instId = custOptMtr.get().getInstId();
+                    Optional<MtrDetailDTO> mtrOpt = mtrDetailService.getByInstId(instId);
+                    if (mtrOpt.isPresent()) {
+                        MtrDetailDTO mtrDto = mtrOpt.get();
+                        BiConsumer<MtrDetailDTO, Object> mtrSetter = mtrDetailSetterMap.get(fieldName);
+                        if (mtrSetter != null) {
+                            mtrSetter.accept(mtrDto, newVal);
+                            mtrDetailService.updateMtrDetail(instId, mtrDto);
+                        } else {
+                            throw new RuntimeException("No setter found for field: " + fieldName + " in MTR_DETAIL");
+                        }
+                    } else {
+                        throw new RuntimeException("MtrDetail not found for instId: " + instId);
+                    }
+                } else {
+                    throw new RuntimeException("Customer or instId not found for accNbr: " + accNbr);
+                }
+                break;
+            case "INST_INFO":
+                Optional<BulkCustomerDTO> custOptInst = bulkCustomerService.getCustomerByAccNbr(accNbr);
+                if (custOptInst.isPresent() && custOptInst.get().getInstId() != null) {
+                    String instId = custOptInst.get().getInstId();
+                    Optional<InstInfoDTO> instOpt = instInfoService.getByInstId(instId);
+                    if (instOpt.isPresent()) {
+                        InstInfoDTO instDto = instOpt.get();
+                        BiConsumer<InstInfoDTO, Object> instSetter = instInfoSetterMap.get(fieldName);
+                        if (instSetter != null) {
+                            instSetter.accept(instDto, newVal);
+                            instInfoService.updateInstInfo(instId, instDto);
+                        } else {
+                            throw new RuntimeException("No setter found for field: " + fieldName + " in INST_INFO");
+                        }
+                    } else {
+                        throw new RuntimeException("InstInfo not found for instId: " + instId);
+                    }
+                } else {
+                    throw new RuntimeException("Customer or instId not found for accNbr: " + accNbr);
+                }
+                break;
+            case "LOAN_MAS":
+                Optional<LoanMasterDTO> loanOpt = loanMasterService.getLoanByAccNbr(accNbr);
+                if (loanOpt.isPresent()) {
+                    LoanMasterDTO loanDto = loanOpt.get();
+                    BiConsumer<LoanMasterDTO, Object> loanSetter = loanMasterSetterMap.get(fieldName);
+                    if (loanSetter != null) {
+                        loanSetter.accept(loanDto, newVal);
+                        loanMasterService.updateLoanMaster(accNbr, loanDto);
+                    } else {
+                        throw new RuntimeException("No setter found for field: " + fieldName + " in LOAN_MAS");
+                    }
+                } else {
+                    throw new RuntimeException("LoanMaster not found for accNbr: " + accNbr);
+                }
+                break;
+            case "NETMETER":
+                Optional<NetmeterDTO> netOpt = netmeterService.getNetmeterByAccNbr(accNbr);
+                if (netOpt.isPresent()) {
+                    NetmeterDTO netDto = netOpt.get();
+                    BiConsumer<NetmeterDTO, Object> netSetter = netmeterSetterMap.get(fieldName);
+                    if (netSetter != null) {
+                        netSetter.accept(netDto, newVal);
+                        netmeterService.updateNetmeter(accNbr, netDto);
+                    } else {
+                        throw new RuntimeException("No setter found for field: " + fieldName + " in NETMETER");
+                    }
+                } else {
+                    throw new RuntimeException("Netmeter not found for accNbr: " + accNbr);
+                }
+                break;
+            default:
+                throw new RuntimeException("Unsupported table for update: " + uptblName);
+        }
+        // Update tmp status to 4
+        tmp.setStatus("4");
+        tmp.setEditedUserId("SYSTEM");
+        tmp.setEditedDtime(new Timestamp(System.currentTimeMillis()));
+        tmpAmndRepository.save(tmp);
+    }
     private TmpAmnd convertToEntity(TmpAmndDTO dto) {
         TmpAmnd amendment = new TmpAmnd();
         TmpAmndPk pk = new TmpAmndPk(dto.getAccNbr(), dto.getAmdType(), dto.getEffctBlcy());
@@ -414,6 +712,27 @@ public class TmpAmndService {
         dto.setEnteredDtime(entity.getEnteredDtime());
         dto.setEditedDtime(entity.getEditedDtime());
         dto.setStatus(entity.getStatus());
+        return dto;
+    }
+    private HistAmndDTO convertToHistDTO(HistAmnd entity) {
+        HistAmndDTO dto = new HistAmndDTO();
+        dto.setAccNbr(entity.getId().getAccNbr());
+        dto.setAmdType(entity.getId().getAmdType());
+        dto.setAddedBlcy(entity.getAddedBlcy());
+        dto.setEffctBlcy(entity.getId().getEffctBlcy());
+        if (entity.getEffctDate() != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            dto.setEffctDate(sdf.format(entity.getEffctDate()));
+        }
+        dto.setOldNmrValue(entity.getOldNmrValue());
+        dto.setNewNmrValue(entity.getNewNmrValue());
+        dto.setOldChrValue(entity.getOldChrValue());
+        dto.setNewChrValue(entity.getNewChrValue());
+        dto.setAmauthCode(entity.getAmauthCode());
+        dto.setUserId(entity.getUserId());
+        dto.setEnteredDtime(entity.getEnteredDtime());
+        dto.setEditedUserId(entity.getEditedUserId());
+        dto.setEditedDtime(entity.getEditedDtime());
         return dto;
     }
 }

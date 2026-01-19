@@ -26,6 +26,33 @@ public class LoanMasterService {
         return repository.findById(accNbr).map(this::convertToDTO);
     }
 
+    // LoanMasterService.java - Add this method to the class
+
+    public LoanMasterDTO updateLoanMaster(String accNbr, LoanMasterDTO updatedDto) {
+        Optional<LoanMaster> optional = repository.findById(accNbr);
+        if (!optional.isPresent()) {
+            throw new RuntimeException("LoanMaster not found for accNbr: " + accNbr);
+        }
+        LoanMaster entity = optional.get();
+        updateLoanMasterFields(entity, updatedDto);
+        entity.setEditedUser(updatedDto.getEditedUser() != null ? updatedDto.getEditedUser() : "SYSTEM");
+        LoanMaster saved = repository.save(entity);
+        return convertToDTO(saved);
+    }
+
+    private void updateLoanMasterFields(LoanMaster entity, LoanMasterDTO dto) {
+        if (dto.getLoanType() != null) entity.setLoanType(dto.getLoanType());
+        if (dto.getLoanAmt() != null) entity.setLoanAmt(dto.getLoanAmt());
+        if (dto.getNoMonths() != null) entity.setNoMonths(dto.getNoMonths());
+        if (dto.getStBillCycle() != null) entity.setStBillCycle(dto.getStBillCycle());
+        if (dto.getEndBillCycle() != null) entity.setEndBillCycle(dto.getEndBillCycle());
+        if (dto.getIntRate() != null) entity.setIntRate(dto.getIntRate());
+        if (dto.getActiveSt() != null) entity.setActiveSt(dto.getActiveSt());
+        if (dto.getMonPmnt() != null) entity.setMonPmnt(dto.getMonPmnt());
+        if (dto.getEnteredUser() != null) entity.setEnteredUser(dto.getEnteredUser());
+        if (dto.getEditedUser() != null) entity.setEditedUser(dto.getEditedUser());
+    }
+
     private LoanMasterDTO convertToDTO(LoanMaster entity) {
         LoanMasterDTO dto = new LoanMasterDTO();
         dto.setAccNbr(entity.getAccNbr());

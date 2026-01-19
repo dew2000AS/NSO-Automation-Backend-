@@ -2,9 +2,8 @@ package com.example.SPSProjectBackend.dto;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.util.Date;  // Changed to java.util.Date
 import java.sql.Timestamp;
 
 @Getter
@@ -26,7 +25,7 @@ public class MtrDetailDTO {
     private String mtrRatio;
     private BigDecimal mFactor;
     private String effctBlcy;
-    private Date effctDate;
+    private Date effctDate;  // Now java.util.Date
     private BigDecimal avgCnsp3;
     private BigDecimal avgCnsp6;
     private BigDecimal avgCnsp12;

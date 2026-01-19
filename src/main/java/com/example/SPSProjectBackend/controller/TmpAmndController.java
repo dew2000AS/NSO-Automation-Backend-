@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -276,6 +277,32 @@ public class TmpAmndController {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Internal server error");
             error.put("message", "Failed to reject amendment: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+    // NEW: Final post to history
+    @PutMapping("/{accNbr}/{amdType}/{effctBlcy}/final-post")
+    public ResponseEntity<?> finalPostAmendment(
+            @PathVariable String accNbr,
+            @PathVariable String amdType,
+            @PathVariable Short effctBlcy,
+            @RequestParam String session_id,
+            @RequestParam String user_id) {
+        try {
+            validateSessionAndAccess(session_id, user_id, null, null, null);
+            tmpAmndService.finalPost(accNbr, amdType, effctBlcy);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Amendment archived to history successfully");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to archive amendment");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Internal server error");
+            error.put("message", "Failed to archive amendment: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }

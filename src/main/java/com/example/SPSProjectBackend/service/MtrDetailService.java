@@ -5,14 +5,13 @@ import com.example.SPSProjectBackend.model.MtrDetail;
 import com.example.SPSProjectBackend.repository.MtrDetailRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class MtrDetailService {
-
     @Autowired
     private MtrDetailRepository repository;
 
@@ -29,6 +28,46 @@ public class MtrDetailService {
         }
         // Assuming one record or taking the first; adjust if multiple are expected
         return Optional.of(convertToDTO(details.get(0)));
+    }
+
+    public MtrDetailDTO updateMtrDetail(String instId, MtrDetailDTO updatedDto) {
+        List<MtrDetail> details = repository.findByInstId(instId);
+        if (details.isEmpty()) {
+            throw new RuntimeException("MtrDetail not found for instId: " + instId);
+        }
+        MtrDetail entity = details.get(0); // Assuming first one
+        updateMtrDetailFields(entity, updatedDto);
+        entity.setEditedUserid(updatedDto.getEditedUserid() != null ? updatedDto.getEditedUserid() : "SYSTEM");
+        entity.setEditedDtime(new Timestamp(System.currentTimeMillis()));
+        MtrDetail saved = repository.save(entity);
+        return convertToDTO(saved);
+    }
+
+    private void updateMtrDetailFields(MtrDetail entity, MtrDetailDTO dto) {
+        if (dto.getAddedBlcy() != null) entity.setAddedBlcy(dto.getAddedBlcy());
+        if (dto.getMtr1set() != null) entity.setMtr1set(dto.getMtr1set());
+        if (dto.getMtr2set() != null) entity.setMtr2set(dto.getMtr2set());
+        if (dto.getMtr3set() != null) entity.setMtr3set(dto.getMtr3set());
+        if (dto.getMtrSeq() != null) entity.setMtrSeq(dto.getMtrSeq());
+        if (dto.getMtrsetType() != null) entity.setMtrsetType(dto.getMtrsetType());
+        if (dto.getMtrOrder() != null) entity.setMtrOrder(dto.getMtrOrder());
+        if (dto.getMtrType() != null) entity.setMtrType(dto.getMtrType());
+        if (dto.getNoOfPhases() != null) entity.setNoOfPhases(dto.getNoOfPhases());
+        if (dto.getMtrNbr() != null) entity.setMtrNbr(dto.getMtrNbr());
+        if (dto.getPrsntRdn() != null) entity.setPrsntRdn(dto.getPrsntRdn());
+        if (dto.getCtRatio() != null) entity.setCtRatio(dto.getCtRatio());
+        if (dto.getMtrRatio() != null) entity.setMtrRatio(dto.getMtrRatio());
+        if (dto.getMFactor() != null) entity.setMFactor(dto.getMFactor());
+        if (dto.getEffctBlcy() != null) entity.setEffctBlcy(dto.getEffctBlcy());
+        if (dto.getEffctDate() != null) entity.setEffctDate(dto.getEffctDate());
+        if (dto.getAvgCnsp3() != null) entity.setAvgCnsp3(dto.getAvgCnsp3());
+        if (dto.getAvgCnsp6() != null) entity.setAvgCnsp6(dto.getAvgCnsp6());
+        if (dto.getAvgCnsp12() != null) entity.setAvgCnsp12(dto.getAvgCnsp12());
+        if (dto.getBrCode() != null) entity.setBrCode(dto.getBrCode());
+        if (dto.getUserId() != null) entity.setUserId(dto.getUserId());
+        if (dto.getEnteredDtime() != null) entity.setEnteredDtime(dto.getEnteredDtime());
+        if (dto.getEditedUserid() != null) entity.setEditedUserid(dto.getEditedUserid());
+        if (dto.getEditedDtime() != null) entity.setEditedDtime(dto.getEditedDtime());
     }
 
     private MtrDetailDTO convertToDTO(MtrDetail entity) {
@@ -49,7 +88,7 @@ public class MtrDetailService {
         dto.setMtrRatio(entity.getMtrRatio());
         dto.setMFactor(entity.getMFactor());
         dto.setEffctBlcy(entity.getEffctBlcy());
-        dto.setEffctDate(entity.getEffctDate() == null ? null : new java.sql.Date(entity.getEffctDate().getTime()));
+        dto.setEffctDate(entity.getEffctDate());  // Direct set, no new java.sql.Date
         dto.setAvgCnsp3(entity.getAvgCnsp3());
         dto.setAvgCnsp6(entity.getAvgCnsp6());
         dto.setAvgCnsp12(entity.getAvgCnsp12());

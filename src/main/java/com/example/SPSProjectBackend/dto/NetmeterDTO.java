@@ -2,9 +2,8 @@ package com.example.SPSProjectBackend.dto;
 
 import lombok.Getter;
 import lombok.Setter;
-
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.util.Date;  // Changed to java.util.Date
 import java.sql.Timestamp;
 
 @Getter
@@ -15,7 +14,7 @@ public class NetmeterDTO {
     private Integer avgImp;
     private Integer avgExp;
     private String netType;
-    private Date agrmntDate;
+    private Date agrmntDate;  // Now java.util.Date
     private BigDecimal rate1;
     private BigDecimal rate2;
     private Short period1;
