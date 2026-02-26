@@ -38,6 +38,10 @@ public class SecurityConfig {
                         // Allow OPTIONS requests for all endpoints
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                         // Add journal endpoints
+                        .requestMatchers("/api/journals/**").permitAll()
+                        .requestMatchers("/api/journals/health").permitAll()
+
                         // Existing endpoints
                         .requestMatchers("/api/v1/**").permitAll()
                         .requestMatchers("/api/v1/verify/**").permitAll()

@@ -1,0 +1,43 @@
+package com.example.SPSProjectBackend.repository;
+
+import com.example.SPSProjectBackend.dto.JournalSummaryDTO;
+import com.example.SPSProjectBackend.model.Journal;
+import com.example.SPSProjectBackend.model.JournalId;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal; 
+import java.util.List;
+
+@Repository
+public interface JournalRepository extends JpaRepository<Journal, JournalId> {
+
+    // =================== SUMMARY DTO QUERY ===================
+    @Query("SELECT new com.example.SPSProjectBackend.dto.JournalSummaryDTO(" +
+           "j.id.accNbr, " +
+           "j.id.jnlType, " +
+           "j.id.jnlNo, " +
+           "j.adjustAmt) " +
+           "FROM Journal j " +
+           "WHERE j.id.areaCd = '27' " +
+           "AND (j.id.addedBlcy IS NULL OR j.id.addedBlcy > 400) " +
+           "ORDER BY j.id.jnlNo")
+    List<JournalSummaryDTO> findFilteredJournals();
+
+    // =================== DETAIL QUERY ===================
+  @Query("SELECT j " +
+           "FROM Journal j " +
+           "WHERE j.id.accNbr = :accNbr " +
+           "AND j.id.jnlType = :jnlType " +
+           "AND j.id.jnlNo = :jnlNo " +
+           "AND j.adjustAmt = :adjustAmt " +
+           "AND j.id.areaCd = '27' " +
+           "AND (j.id.addedBlcy IS NULL OR j.id.addedBlcy > 400)")
+    List<Journal> findJournalDetailsByCompositeKey(
+            @Param("accNbr") String accNbr,
+            @Param("jnlType") String jnlType,
+            @Param("jnlNo") Integer jnlNo,
+            @Param("adjustAmt") BigDecimal adjustAmt);
+}
