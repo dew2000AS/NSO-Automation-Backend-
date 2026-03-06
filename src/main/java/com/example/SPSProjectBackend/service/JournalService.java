@@ -4,11 +4,15 @@ import com.example.SPSProjectBackend.dto.JournalDetailDTO;
 import com.example.SPSProjectBackend.dto.JournalSummaryDTO;
 import com.example.SPSProjectBackend.dto.JournalTypeDTO;
 import com.example.SPSProjectBackend.dto.JournalUpdateDTO;
+import com.example.SPSProjectBackend.dto.JournalCreateDTO;
+import com.example.SPSProjectBackend.dto.JurnlAuthDTO;
 import com.example.SPSProjectBackend.model.Journal;
 import com.example.SPSProjectBackend.model.JournalId;
 import com.example.SPSProjectBackend.model.JournalType;
+import com.example.SPSProjectBackend.model.JurnlAuth;
 import com.example.SPSProjectBackend.repository.JournalRepository;
 import com.example.SPSProjectBackend.repository.JournalTypeRepository;
+import com.example.SPSProjectBackend.repository.JurnlAuthRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +31,9 @@ public class JournalService {
 
     @Autowired
     private JournalTypeRepository journalTypeRepository;
+
+    @Autowired
+    private JurnlAuthRepository jurnlAuthRepository;
 
     // ===================== GET ALL JOURNALS =====================
     @Transactional(readOnly = true)
@@ -165,6 +172,122 @@ public class JournalService {
         }
     }
 
+    // ===================== CREATE JOURNAL =====================
+    @Transactional
+    public JournalDetailDTO createJournal(JournalCreateDTO createDTO) {
+        try {
+            System.out.println("Creating new journal with data: " + createDTO);
+            
+            // ====== CREATE FIRST JOURNAL ENTRY (Field 1) ======
+            JournalId journalId1 = new JournalId();
+            journalId1.setAccNbr(createDTO.getAccNbr());
+            journalId1.setAreaCd(createDTO.getAreaCd());
+            journalId1.setAddedBlcy(createDTO.getCurrentBillCycle());
+            journalId1.setJnlType(createDTO.getJnlType());
+            journalId1.setJnlNo(createDTO.getJnlNo());
+            
+            // Check if journal already exists
+            if (journalRepository.existsById(journalId1)) {
+                throw new RuntimeException("Journal already exists with jnl_no: " + createDTO.getJnlNo());
+            }
+            
+            // Create first journal entity (for Field 1)
+            Journal journal1 = new Journal();
+            journal1.setId(journalId1);
+            
+            // Calculate adjust_amt from field1
+            BigDecimal field1Amount = createDTO.getField1() != null ? createDTO.getField1() : BigDecimal.ZERO;
+            int field1Sign = "CREDIT".equalsIgnoreCase(createDTO.getField1Type()) ? -1 : 1;
+            BigDecimal adjustAmt1 = field1Amount.multiply(new BigDecimal(field1Sign));
+            
+            journal1.setAdjustAmt(adjustAmt1);
+            
+            // adjust_stat: "1" for DEBIT, "-1" for CREDIT
+            journal1.setAdjustStat("CREDIT".equalsIgnoreCase(createDTO.getField1Type()) ? "-1" : "1");
+            
+            journal1.setAuthCode(createDTO.getApprovedBy());
+            
+            // Document Attached: "0" for No, actual value for Yes
+            journal1.setDocAttch("N".equalsIgnoreCase(createDTO.getDocAttch()) ? "0" : createDTO.getDocAttch());
+            
+            // Parse and set journal date
+            if (createDTO.getJnlDate() != null && !createDTO.getJnlDate().isEmpty()) {
+                try {
+                    journal1.setJnlDate(LocalDateTime.parse(createDTO.getJnlDate() + "T00:00:00"));
+                } catch (Exception e) {
+                    System.err.println("Error parsing date: " + e.getMessage());
+                    journal1.setJnlDate(LocalDateTime.now());
+                }
+            } else {
+                journal1.setJnlDate(LocalDateTime.now());
+            }
+            
+            // Confirmed: null if not checked, "Y" if checked
+            journal1.setConfirmed(createDTO.getIndividuallyConfirmed() != null && createDTO.getIndividuallyConfirmed() ? "Y" : null);
+            
+            journal1.setUserId("ADMIN"); // Set from current user session
+            journal1.setEnteredDtime(LocalDateTime.now());
+            
+            // Save first journal to database
+            Journal savedJournal1 = journalRepository.save(journal1);
+            System.out.println("First journal entry created: " + savedJournal1.getId());
+            
+            // ====== CREATE SECOND JOURNAL ENTRY (Field 2 - if paired type exists) ======
+            if (createDTO.getPairedJnlType() != null && !createDTO.getPairedJnlType().isEmpty() 
+                && createDTO.getField2() != null && createDTO.getField2().compareTo(BigDecimal.ZERO) > 0) {
+                
+                System.out.println("Creating paired journal entry with type: " + createDTO.getPairedJnlType());
+                
+                // Use same jnl_no for second entry (only jnl_type differs)
+                JournalId journalId2 = new JournalId();
+                journalId2.setAccNbr(createDTO.getAccNbr());
+                journalId2.setAreaCd(createDTO.getAreaCd());
+                journalId2.setAddedBlcy(createDTO.getCurrentBillCycle());
+                journalId2.setJnlType(createDTO.getPairedJnlType()); // Use paired journal type
+                journalId2.setJnlNo(createDTO.getJnlNo()); // Same journal number
+                
+                // Check if second journal already exists
+                if (journalRepository.existsById(journalId2)) {
+                    throw new RuntimeException("Paired journal already exists with jnl_no: " + createDTO.getJnlNo());
+                }
+                
+                // Create second journal entity (for Field 2)
+                Journal journal2 = new Journal();
+                journal2.setId(journalId2);
+                
+                // Calculate adjust_amt from field2
+                BigDecimal field2Amount = createDTO.getField2();
+                int field2Sign = "CREDIT".equalsIgnoreCase(createDTO.getField2Type()) ? -1 : 1;
+                BigDecimal adjustAmt2 = field2Amount.multiply(new BigDecimal(field2Sign));
+                
+                journal2.setAdjustAmt(adjustAmt2);
+                
+                // adjust_stat: "1" for DEBIT, "-1" for CREDIT
+                journal2.setAdjustStat("CREDIT".equalsIgnoreCase(createDTO.getField2Type()) ? "-1" : "1");
+                
+                journal2.setAuthCode(createDTO.getApprovedBy());
+                journal2.setDocAttch("N".equalsIgnoreCase(createDTO.getDocAttch()) ? "0" : createDTO.getDocAttch());
+                journal2.setJnlDate(journal1.getJnlDate()); // Same date as first entry
+                journal2.setConfirmed(createDTO.getIndividuallyConfirmed() != null && createDTO.getIndividuallyConfirmed() ? "Y" : null);
+                journal2.setUserId("ADMIN");
+                journal2.setEnteredDtime(LocalDateTime.now());
+                
+                // Save second journal to database
+                Journal savedJournal2 = journalRepository.save(journal2);
+                System.out.println("Second journal entry created: " + savedJournal2.getId());
+            }
+            
+            System.out.println("Journal creation completed successfully");
+            
+            return convertToDetailDTO(savedJournal1);
+            
+        } catch (Exception e) {
+            System.err.println("Error creating journal: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error creating journal: " + e.getMessage(), e);
+        }
+    }
+
     // ===================== DTO MAPPER =====================
     private JournalDetailDTO convertToDetailDTO(Journal journal) {
         if (journal == null) return null;
@@ -194,11 +317,11 @@ public class JournalService {
     @Transactional(readOnly = true)
     public List<JournalTypeDTO> getAllJournalTypes() {
         try {
-            System.out.println("Fetching all journal types from jnal_typs table");
+            System.out.println("Fetching all journal types from jnal_typs table where jnlt_status='A'");
             
             List<JournalType> journalTypes = journalTypeRepository.findAllOrderedByType();
             
-            System.out.println("Found " + journalTypes.size() + " journal types");
+            System.out.println("Found " + journalTypes.size() + " active journal types");
             
             return journalTypes.stream()
                     .map(jt -> new JournalTypeDTO(jt.getJnlType(), jt.getJnlDesc()))
@@ -207,6 +330,25 @@ public class JournalService {
             System.err.println("Error in getAllJournalTypes: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Error fetching journal types: " + e.getMessage(), e);
+        }
+    }
+
+    // ===================== GET ALL JURNL AUTH =====================
+    public List<JurnlAuthDTO> getAllJurnlAuth() {
+        try {
+            System.out.println("Fetching all jurnl_auth records where ac_status='A'");
+            
+            List<JurnlAuth> jurnlAuths = jurnlAuthRepository.findAllActive();
+            
+            System.out.println("Found " + jurnlAuths.size() + " active jurnl_auth records");
+            
+            return jurnlAuths.stream()
+                    .map(ja -> new JurnlAuthDTO(ja.getAuthCode(), ja.getDesig(), ja.getName()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error in getAllJurnlAuth: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching jurnl_auth: " + e.getMessage(), e);
         }
     }
 

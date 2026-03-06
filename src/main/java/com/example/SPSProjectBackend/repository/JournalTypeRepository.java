@@ -10,6 +10,6 @@ import java.util.List;
 @Repository
 public interface JournalTypeRepository extends JpaRepository<JournalType, String> {
 
-    @Query("SELECT jt FROM JournalType jt ORDER BY jt.jnlType")
+    @Query("SELECT jt FROM JournalType jt WHERE jt.jnltStatus = 'A' ORDER BY jt.jnlType")
     List<JournalType> findAllOrderedByType();
 }

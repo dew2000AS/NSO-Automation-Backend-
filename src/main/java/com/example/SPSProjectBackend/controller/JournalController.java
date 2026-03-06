@@ -4,7 +4,11 @@ import com.example.SPSProjectBackend.dto.JournalDetailDTO;
 import com.example.SPSProjectBackend.dto.JournalSummaryDTO;
 import com.example.SPSProjectBackend.dto.JournalTypeDTO;
 import com.example.SPSProjectBackend.dto.JournalUpdateDTO;
+import com.example.SPSProjectBackend.dto.JournalCreateDTO;
+import com.example.SPSProjectBackend.dto.JurnlAuthDTO;
+import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import com.example.SPSProjectBackend.service.JournalService;
+import com.example.SPSProjectBackend.util.SessionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +24,9 @@ public class JournalController {
 
     @Autowired
     private JournalService journalService;
+
+    @Autowired
+    private SessionUtils sessionUtils;
 
     // ===================== HEALTH CHECK =====================
     @GetMapping("/health")
@@ -57,6 +64,36 @@ public class JournalController {
             errorResponse.put("success", false);
             errorResponse.put("error", "Internal Server Error");
             errorResponse.put("message", "Failed to fetch journal types: " + e.getMessage());
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    // ===================== GET ALL JURNL AUTH =====================
+    @GetMapping("/jurnl-auth")
+    public ResponseEntity<?> getAllJurnlAuth() {
+        try {
+            System.out.println("API: Fetching all jurnl_auth records");
+            
+            List<JurnlAuthDTO> jurnlAuths = journalService.getAllJurnlAuth();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("count", jurnlAuths.size());
+            response.put("data", jurnlAuths);
+            response.put("timestamp", new Date());
+            response.put("message", jurnlAuths.isEmpty() ?
+                    "No jurnl_auth records found" :
+                    "Jurnl_auth records fetched successfully");
+
+            System.out.println("API: Returning " + jurnlAuths.size() + " jurnl_auth records");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("API Error: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "Failed to fetch jurnl_auth: " + e.getMessage());
             errorResponse.put("timestamp", new Date());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
@@ -191,6 +228,87 @@ public ResponseEntity<?> updateJournal(@RequestBody JournalUpdateDTO journalUpda
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
         errorResponse.put("error", "Update Failed");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", new Date());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+}
+
+// ===================== CREATE JOURNAL =====================
+@PostMapping("/create")
+public ResponseEntity<?> createJournal(
+        @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @RequestBody JournalCreateDTO journalCreateDTO) {
+    try {
+        System.out.println("========== CREATE JOURNAL REQUEST RECEIVED ==========");
+        System.out.println("Session ID: " + sessionId);
+        System.out.println("User ID: " + userId);
+        
+        // Authorization check: Only Accountant Clark can create new journals
+        if (sessionId == null || userId == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Unauthorized");
+            errorResponse.put("message", "Session ID and User ID are required");
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        // Get user information from session
+        Optional<SecInfoLoginDTO.UserInfo> userInfoOpt = sessionUtils.getUserLocationFromSession(sessionId, userId);
+        if (!userInfoOpt.isPresent()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Unauthorized");
+            errorResponse.put("message", "Invalid session or user");
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        SecInfoLoginDTO.UserInfo userInfo = userInfoOpt.get();
+        String userCategory = userInfo.getUserCategory();
+        
+        // Check if user is Accountant Clark
+        if (!"Accountant Clark".equals(userCategory)) {
+            System.out.println("User category '" + userCategory + "' is not authorized to create journals");
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Forbidden");
+            errorResponse.put("message", "Only Accountant Clark users can create new journals. Other users can only view journals.");
+            errorResponse.put("userCategory", userCategory);
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        System.out.println("User authorized. Category: " + userCategory);
+        System.out.println("Account Number: " + journalCreateDTO.getAccNbr());
+        System.out.println("Journal Type: " + journalCreateDTO.getJnlType());
+        System.out.println("Journal No: " + journalCreateDTO.getJnlNo());
+        System.out.println("Field 1: " + journalCreateDTO.getField1() + " (" + journalCreateDTO.getField1Type() + ")");
+        System.out.println("Field 2: " + journalCreateDTO.getField2() + " (" + journalCreateDTO.getField2Type() + ")");
+        System.out.println("Total Amount: " + journalCreateDTO.getTotalAmt());
+        System.out.println("====================================================");
+        
+        JournalDetailDTO createdJournal = journalService.createJournal(journalCreateDTO);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", createdJournal);
+        response.put("message", "Journal created successfully");
+        response.put("timestamp", new Date());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    } catch (Exception e) {
+        System.err.println("========== CREATE JOURNAL ERROR ==========");
+        System.err.println("Error message: " + e.getMessage());
+        System.err.println("Error type: " + e.getClass().getName());
+        e.printStackTrace();
+        System.err.println("===========================================");
+        
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("error", "Create Failed");
         errorResponse.put("message", e.getMessage());
         errorResponse.put("timestamp", new Date());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
