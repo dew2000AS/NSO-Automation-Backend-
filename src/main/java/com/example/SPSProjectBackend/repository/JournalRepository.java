@@ -14,30 +14,34 @@ import java.util.List;
 @Repository
 public interface JournalRepository extends JpaRepository<Journal, JournalId> {
 
-    // =================== SUMMARY DTO QUERY ===================
+    // =================== SUMMARY DTO QUERY - SELECTED AREA AND BILL CYCLE ===================
     @Query("SELECT new com.example.SPSProjectBackend.dto.JournalSummaryDTO(" +
            "j.id.accNbr, " +
            "j.id.jnlType, " +
            "j.id.jnlNo, " +
            "j.adjustAmt) " +
            "FROM Journal j " +
-           "WHERE j.id.areaCd = '27' " +
-           "AND (j.id.addedBlcy IS NULL OR j.id.addedBlcy > 400) " +
+           "WHERE j.id.areaCd = :areaCode " +
+           "AND j.id.addedBlcy = :billCycle " +
            "ORDER BY j.id.jnlNo")
-    List<JournalSummaryDTO> findFilteredJournals();
+    List<JournalSummaryDTO> findFilteredJournalsByAreaAndBillCycle(
+            @Param("areaCode") String areaCode,
+            @Param("billCycle") Integer billCycle);
 
-    // =================== DETAIL QUERY ===================
-  @Query("SELECT j " +
+    // =================== DETAIL QUERY - SELECTED AREA AND BILL CYCLE ===================
+    @Query("SELECT j " +
            "FROM Journal j " +
            "WHERE j.id.accNbr = :accNbr " +
            "AND j.id.jnlType = :jnlType " +
            "AND j.id.jnlNo = :jnlNo " +
            "AND j.adjustAmt = :adjustAmt " +
-           "AND j.id.areaCd = '27' " +
-           "AND (j.id.addedBlcy IS NULL OR j.id.addedBlcy > 400)")
-    List<Journal> findJournalDetailsByCompositeKey(
+           "AND j.id.areaCd = :areaCode " +
+           "AND j.id.addedBlcy = :billCycle")
+    List<Journal> findJournalDetailsByCompositeKeyAndArea(
             @Param("accNbr") String accNbr,
             @Param("jnlType") String jnlType,
             @Param("jnlNo") Integer jnlNo,
-            @Param("adjustAmt") BigDecimal adjustAmt);
+            @Param("adjustAmt") BigDecimal adjustAmt,
+            @Param("areaCode") String areaCode,
+            @Param("billCycle") Integer billCycle);
 }

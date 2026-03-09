@@ -35,13 +35,14 @@ public class JournalService {
     @Autowired
     private JurnlAuthRepository jurnlAuthRepository;
 
-    // ===================== GET ALL JOURNALS =====================
+    // ===================== GET ALL JOURNALS WITH SELECTED AREA AND BILL CYCLE =====================
     @Transactional(readOnly = true)
-    public List<JournalSummaryDTO> getAllJournalsSummary() {
+    public List<JournalSummaryDTO> getAllJournalsSummary(String areaCode, Integer billCycle) {
         try {
-            System.out.println("Fetching journals with filter: area_cd='27' AND added_blcy > 400");
+            System.out.println("Fetching journals for area: " + areaCode + ", bill cycle: " + billCycle);
             
-            List<JournalSummaryDTO> journals = journalRepository.findFilteredJournals();
+            // Fetch journals filtered by selected area and bill cycle
+            List<JournalSummaryDTO> journals = journalRepository.findFilteredJournalsByAreaAndBillCycle(areaCode, billCycle);
             
             System.out.println("Found " + journals.size() + " journals matching criteria");
             
@@ -63,24 +64,23 @@ public class JournalService {
         }
     }
 
-    // ===================== GET JOURNAL DETAILS =====================
-   @Transactional(readOnly = true)
-    public List<JournalDetailDTO> getJournalDetail(String accNbr, String jnlType, Integer jnlNo, BigDecimal adjustAmt) {
+    // ===================== GET JOURNAL DETAILS WITH SELECTED AREA AND BILL CYCLE =====================
+    @Transactional(readOnly = true)
+    public List<JournalDetailDTO> getJournalDetail(String accNbr, String jnlType, Integer jnlNo, BigDecimal adjustAmt, 
+                                                    String areaCode, Integer billCycle) {
         try {
             if (accNbr == null || jnlType == null || jnlNo == null || adjustAmt == null) {
                 System.out.println("Required parameters are null, returning empty list");
                 return Collections.emptyList();
             }
             
-            System.out.println("Fetching journal details for composite key: " +
-                             "accNbr=" + accNbr + 
-                             ", jnlType=" + jnlType +
-                             ", jnlNo=" + jnlNo + 
-                             ", adjustAmt=" + adjustAmt +
-                             " with filter: area_cd='27' AND added_blcy > 400");
+            System.out.println("Fetching journal details for area: " + areaCode + ", bill cycle: " + billCycle);
+            System.out.println("Composite key: accNbr=" + accNbr + ", jnlType=" + jnlType + 
+                             ", jnlNo=" + jnlNo + ", adjustAmt=" + adjustAmt);
             
-            List<Journal> journals = journalRepository.findJournalDetailsByCompositeKey(
-                accNbr, jnlType, jnlNo, adjustAmt);
+            // Fetch journal details with area and bill cycle filtering
+            List<Journal> journals = journalRepository.findJournalDetailsByCompositeKeyAndArea(
+                accNbr, jnlType, jnlNo, adjustAmt, areaCode, billCycle);
             
             System.out.println("Found " + journals.size() + " matching journals");
             

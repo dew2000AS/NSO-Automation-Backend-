@@ -99,13 +99,34 @@ public class JournalController {
         }
     }
 
-    // ===================== GET ALL JOURNALS =====================
+    // ===================== GET ALL JOURNALS BY SELECTED AREA AND BILL CYCLE =====================
     @GetMapping
-    public ResponseEntity<?> getAllJournals() {
+    public ResponseEntity<?> getAllJournals(
+            @RequestParam(required = false) String area_code,
+            @RequestParam(required = false) Integer bill_cycle) {
         try {
-            System.out.println("API: Fetching journals with filter: area_cd='27' AND added_blcy > 400");
+            // Validate area_code and bill_cycle parameters
+            if (area_code == null || area_code.trim().isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "area_code is required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
             
-            List<JournalSummaryDTO> journals = journalService.getAllJournalsSummary();
+            if (bill_cycle == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "bill_cycle is required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            System.out.println("API: Fetching journals for area: " + area_code + ", bill cycle: " + bill_cycle);
+            
+            List<JournalSummaryDTO> journals = journalService.getAllJournalsSummary(area_code, bill_cycle);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -113,17 +134,18 @@ public class JournalController {
             response.put("data", journals);
             response.put("timestamp", new Date());
             response.put("message", journals.isEmpty() ?
-                    "No journals found with area_cd='27' and added_blcy > 400" :
+                    "No journals found for area " + area_code + " and bill cycle " + bill_cycle :
                     "Journals fetched successfully");
             response.put("filter", Map.of(
-                "area_cd", "27",
-                "added_blcy", "> 400"
+                "area_code", area_code,
+                "bill_cycle", bill_cycle
             ));
 
             System.out.println("API: Returning " + journals.size() + " journals");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             System.err.println("API Error: " + e.getMessage());
+            e.printStackTrace();
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "Internal Server Error");
@@ -133,30 +155,47 @@ public class JournalController {
         }
     }
 
-    // ===================== GET JOURNAL DETAIL =====================
-   @GetMapping("/detail/{jnlNo}")
+    // ===================== GET JOURNAL DETAIL BY SELECTED AREA AND BILL CYCLE =====================
+    @GetMapping("/detail/{jnlNo}")
     public ResponseEntity<?> getJournalDetail(
             @PathVariable Integer jnlNo,
             @RequestParam String accNbr,
             @RequestParam String jnlType,
-            @RequestParam BigDecimal adjustAmt) {
+            @RequestParam BigDecimal adjustAmt,
+            @RequestParam(required = false) String area_code,
+            @RequestParam(required = false) Integer bill_cycle) {
         
         try {
-            System.out.println("API: Fetching journal detail for composite key: " + 
-                             "jnlNo=" + jnlNo + 
-                             ", accNbr='" + accNbr + "'" +
-                             ", jnlType='" + jnlType + "'" +
-                             ", adjustAmt=" + adjustAmt +
-                             " with filter: area_cd='27' AND added_blcy > 400");
+            // Validate area_code and bill_cycle parameters
+            if (area_code == null || area_code.trim().isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "area_code is required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            if (bill_cycle == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "bill_cycle is required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            System.out.println("API: Fetching journal detail for area: " + area_code + ", bill cycle: " + bill_cycle);
+            System.out.println("Composite key: jnlNo=" + jnlNo + ", accNbr='" + accNbr + "', jnlType='" + jnlType + "', adjustAmt=" + adjustAmt);
             
             List<JournalDetailDTO> journals = journalService.getJournalDetail(
-                accNbr, jnlType, jnlNo, adjustAmt);
+                accNbr, jnlType, jnlNo, adjustAmt, area_code, bill_cycle);
 
             if (journals.isEmpty()) {
                 Map<String, Object> errorResponse = new HashMap<>();
                 errorResponse.put("success", false);
                 errorResponse.put("error", "Journal not found");
-                errorResponse.put("message", "No journal found with the specified composite key");
+                errorResponse.put("message", "No journal found with the specified criteria for area " + area_code + " and bill cycle " + bill_cycle);
                 errorResponse.put("compositeKey", Map.of(
                     "jnlNo", jnlNo,
                     "accNbr", accNbr,
@@ -176,6 +215,7 @@ public class JournalController {
             }
         } catch (Exception e) {
             System.err.println("API Error for journal " + jnlNo + ": " + e.getMessage());
+            e.printStackTrace();
             Map<String, Object> errorResponse = new HashMap<>();
             errorResponse.put("success", false);
             errorResponse.put("error", "Internal Server Error");
