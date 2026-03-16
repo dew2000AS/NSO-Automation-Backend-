@@ -318,6 +318,34 @@ INSERT INTO dbadmin.tmp_rdngs (acc_nbr, area_cd, added_blcy, mtr_seq, prv_date, 
 INSERT INTO dbadmin.tmp_rdngs (acc_nbr, area_cd, added_blcy, mtr_seq, prv_date, rdng_date, prv_rdn, prsnt_rdn, mtr_nbr, mtr_type, units, rate, computed_chg, mnt_chg, acode, m_factor, bill_stat, err_stat, mtr_stat, rdn_stat, user_id) VALUES ('1870100085', '57', '444', 1, '2025-08-01', '2025-09-01', 4125710, 4150261, '210094139', 'KWD', 24551, 41.00, 1006591.00, 1006591.00, '', 1.000, '0', 0, '4', '0', 'RRC');
 INSERT INTO dbadmin.tmp_rdngs (acc_nbr, area_cd, added_blcy, mtr_seq, prv_date, rdng_date, prv_rdn, prsnt_rdn, mtr_nbr, mtr_type, units, rate, computed_chg, mnt_chg, acode, m_factor, bill_stat, err_stat, mtr_stat, rdn_stat, user_id) VALUES ('1870100069', '57', '444', 1, '2025-08-01', '2025-09-01', 0, 0, '9102403', 'KVAH', 0, 0.00, 0.00, 0.00, '', 0.000, '0', 0, '0', '0', 'CEB');
 
+-- Create TMP_PAYMENTS table for temporary payment records
+CREATE TABLE dbadmin.tmp_payments (
+    id SERIAL PRIMARY KEY,
+    agent_code CHAR(4),
+    cent_code CHAR(3),
+    acc_nbr CHAR(10),
+    counter VARCHAR(3),
+    lot CHAR(2),
+    stub_no SMALLINT,
+    actl_pay_date DATE,
+    credit_date DATE,
+    pay_mode CHAR(1),
+    bank_code CHAR(4),
+    branch_code CHAR(3),
+    chq_no VARCHAR(8),
+    bank_account VARCHAR(15),
+    paid_amt DECIMAL(15, 2),
+    up_date DATE,
+    crnt_cycle CHAR(3)
+);
+
+-- Insert sample temporary payment data
+INSERT INTO dbadmin.tmp_payments (agent_code, cent_code, acc_nbr, counter, lot, stub_no, actl_pay_date, credit_date, pay_mode, paid_amt) 
+VALUES ('CEBC', 'QC0', '4170001370', 'CB', '', 95, '2022-07-22', '2022-07-22', 'Q', 110795.00);
+INSERT INTO dbadmin.tmp_payments (agent_code, cent_code, acc_nbr, counter, lot, stub_no, actl_pay_date, credit_date, pay_mode, paid_amt) 
+VALUES ('CEBC', 'QC0', '4170002253', 'CB', '', 110, '2022-07-22', '2022-07-22', 'Q', 104857.30);
+INSERT INTO dbadmin.tmp_payments (agent_code, cent_code, acc_nbr, counter, lot, stub_no, actl_pay_date, credit_date, pay_mode, paid_amt) 
+VALUES ('CEBC', 'QC0', '4170003489', 'CB', '', 111, '2022-07-22', '2022-07-22', 'Q', 506820.00);
 
 CREATE TABLE testdb:dbadmin.amnd_types (
   amd_type CHAR(4),

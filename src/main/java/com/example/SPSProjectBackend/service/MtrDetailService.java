@@ -30,6 +30,13 @@ public class MtrDetailService {
         return Optional.of(convertToDTO(details.get(0)));
     }
 
+    public List<MtrDetailDTO> getAllByInstId(String instId) {
+        return repository.findByInstId(instId)
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     public MtrDetailDTO updateMtrDetail(String instId, MtrDetailDTO updatedDto) {
         List<MtrDetail> details = repository.findByInstId(instId);
         if (details.isEmpty()) {
