@@ -99,6 +99,64 @@ public class JournalController {
         }
     }
 
+    // ===================== GET JOURNALS REPORT FOR ACC ASSISTANCE =====================
+    @GetMapping("/report")
+    public ResponseEntity<?> getJournalsReport(
+            @RequestParam(required = false) String session_id,
+            @RequestParam(required = false) String user_id,
+            @RequestParam(required = false) String area_code,
+            @RequestParam(required = false) Integer bill_cycle) {
+        try {
+            // Validate session and user parameters
+            if (session_id == null || session_id.trim().isEmpty() || 
+                user_id == null || user_id.trim().isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "session_id and user_id are required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            // Validate area_code and bill_cycle parameters
+            if (area_code == null || area_code.trim().isEmpty() || bill_cycle == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("error", "Bad Request");
+                errorResponse.put("message", "area_code and bill_cycle are required");
+                errorResponse.put("timestamp", new Date());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            System.out.println("API: Generating journals report for user: " + user_id 
+                             + ", area: " + area_code + ", bill cycle: " + bill_cycle);
+            
+            List<JournalDetailDTO> journals = journalService.getJournalsForUserReport(
+                session_id, user_id, area_code, bill_cycle);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("count", journals.size());
+            response.put("data", journals);
+            response.put("timestamp", new Date());
+            response.put("message", journals.isEmpty() ?
+                    "No journals found for area " + area_code + " and bill cycle " + bill_cycle :
+                    "Journal report generated successfully");
+
+            System.out.println("API: Returning report with " + journals.size() + " journals");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("API Error: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "Failed to generate journal report: " + e.getMessage());
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     // ===================== GET ALL JOURNALS BY SELECTED AREA AND BILL CYCLE =====================
     @GetMapping
     public ResponseEntity<?> getAllJournals(
@@ -237,43 +295,6 @@ public class JournalController {
         return ResponseEntity.status(HttpStatus.GONE).body(response);
     }
 
-// ===================== UPDATE JOURNAL =====================
-@PutMapping("/update")
-public ResponseEntity<?> updateJournal(@RequestBody JournalUpdateDTO journalUpdateDTO) {
-    try {
-        System.out.println("========== UPDATE JOURNAL REQUEST RECEIVED ==========");
-        System.out.println("Journal No: " + journalUpdateDTO.getJnlNo());
-        System.out.println("Account Number: " + journalUpdateDTO.getAccNbr());
-        System.out.println("Journal Type: " + journalUpdateDTO.getJnlType());
-        System.out.println("New Adjustment Amount: " + journalUpdateDTO.getAdjustAmt());
-        System.out.println("Area Code: " + journalUpdateDTO.getAreaCd());
-        System.out.println("==================================================");
-        
-        JournalDetailDTO updatedJournal = journalService.updateJournal(journalUpdateDTO);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", updatedJournal);
-        response.put("message", "Journal updated successfully");
-        response.put("timestamp", new Date());
-
-        return ResponseEntity.ok(response);
-    } catch (Exception e) {
-        System.err.println("========== UPDATE JOURNAL ERROR ==========");
-        System.err.println("Error message: " + e.getMessage());
-        System.err.println("Error type: " + e.getClass().getName());
-        e.printStackTrace(); // This will print the full stack trace
-        System.err.println("===========================================");
-        
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("success", false);
-        errorResponse.put("error", "Update Failed");
-        errorResponse.put("message", e.getMessage());
-        errorResponse.put("timestamp", new Date());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-    }
-}
-
 // ===================== CREATE JOURNAL =====================
 @PostMapping("/create")
 public ResponseEntity<?> createJournal(
@@ -330,7 +351,7 @@ public ResponseEntity<?> createJournal(
         System.out.println("Total Amount: " + journalCreateDTO.getTotalAmt());
         System.out.println("====================================================");
         
-        JournalDetailDTO createdJournal = journalService.createJournal(journalCreateDTO);
+        JournalDetailDTO createdJournal = journalService.createJournal(journalCreateDTO, userId);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -349,6 +370,186 @@ public ResponseEntity<?> createJournal(
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
         errorResponse.put("error", "Create Failed");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", new Date());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+}
+
+// ===================== CONFIRM JOURNALS =====================
+@PostMapping("/confirm")
+public ResponseEntity<?> confirmJournals(
+        @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @RequestBody List<JournalDetailDTO> journals) {
+    try {
+        System.out.println("========== CONFIRM JOURNALS REQUEST RECEIVED ==========");
+        System.out.println("Session ID: " + sessionId);
+        System.out.println("User ID: " + userId);
+        System.out.println("Number of journals to confirm: " + journals.size());
+        
+        // Authorization check
+        if (sessionId == null || userId == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Unauthorized");
+            errorResponse.put("message", "Session ID and User ID are required");
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        // Get user information from session
+        Optional<SecInfoLoginDTO.UserInfo> userInfoOpt = sessionUtils.getUserLocationFromSession(sessionId, userId);
+        if (!userInfoOpt.isPresent()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Unauthorized");
+            errorResponse.put("message", "Invalid session or user");
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        SecInfoLoginDTO.UserInfo userInfo = userInfoOpt.get();
+        String userCategory = userInfo.getUserCategory();
+        
+        // Check if user is Acc Assistance
+        if (!"Acc Assistance".equals(userCategory)) {
+            System.out.println("User category '" + userCategory + "' is not authorized to confirm journals");
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", "Forbidden");
+            errorResponse.put("message", "Only Acc Assistance users can confirm journals.");
+            errorResponse.put("userCategory", userCategory);
+            errorResponse.put("timestamp", new Date());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        System.out.println("User authorized. Category: " + userCategory);
+        System.out.println("====================================================");
+        
+        // Call service to confirm journals and create log_file entry
+        Map<String, Object> confirmResult = journalService.confirmJournals(journals, userId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("confirmedCount", confirmResult.get("confirmedCount"));
+        response.put("logId", confirmResult.get("logId"));
+        response.put("message", "Successfully confirmed " + confirmResult.get("confirmedCount") + " journal(s) and created log entry with ID: " + confirmResult.get("logId"));
+        response.put("timestamp", new Date());
+
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        System.err.println("========== CONFIRM JOURNALS ERROR ==========");
+        System.err.println("Error message: " + e.getMessage());
+        System.err.println("Error type: " + e.getClass().getName());
+        e.printStackTrace();
+        System.err.println("===========================================");
+        
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("error", "Confirmation Failed");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", new Date());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+}
+
+// ===================== CHECK IF ALREADY CONFIRMED =====================
+@GetMapping("/check-confirmed")
+public ResponseEntity<?> checkIfConfirmed(
+        @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @RequestParam String areaCode,
+        @RequestParam Integer billCycle) {
+    try {
+        System.out.println("========== CHECK IF CONFIRMED REQUEST ==========");
+        System.out.println("Area Code: " + areaCode + ", Bill Cycle: " + billCycle);
+        
+        // Authorization check
+        if (sessionId == null || userId == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Unauthorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        boolean isConfirmed = journalService.isAlreadyConfirmed(areaCode, billCycle);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("isConfirmed", isConfirmed);
+        response.put("areaCode", areaCode);
+        response.put("billCycle", billCycle);
+        response.put("timestamp", new Date());
+        
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        System.err.println("Error checking confirmation status: " + e.getMessage());
+        e.printStackTrace();
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("error", "Internal Server Error");
+        errorResponse.put("message", e.getMessage());
+        errorResponse.put("timestamp", new Date());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+}
+
+// ===================== UPDATE JOURNAL =====================
+@PutMapping("/update")
+public ResponseEntity<?> updateJournal(
+        @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
+        @RequestHeader(value = "X-User-Id", required = false) String userId,
+        @RequestBody JournalUpdateDTO updateDTO) {
+    try {
+        System.out.println("========== UPDATE JOURNAL REQUEST ==========");
+        System.out.println("User ID: " + userId);
+        System.out.println("Account Number: " + updateDTO.getAccNbr());
+        
+        // Authorization check
+        if (sessionId == null || userId == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Unauthorized");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        // Get user information
+        Optional<SecInfoLoginDTO.UserInfo> userInfoOpt = sessionUtils.getUserLocationFromSession(sessionId, userId);
+        if (!userInfoOpt.isPresent()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Invalid session");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+        }
+        
+        SecInfoLoginDTO.UserInfo userInfo = userInfoOpt.get();
+        String userCategory = userInfo.getUserCategory();
+        
+        // Check if user is Acc Assistance
+        if (!"Acc Assistance".equals(userCategory)) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Only Acc Assistance users can edit journals");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+        }
+        
+        // Call service to update journal
+        JournalDetailDTO updatedJournal = journalService.updateJournal(updateDTO, userId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", updatedJournal);
+        response.put("message", "Journal updated successfully");
+        response.put("timestamp", new Date());
+        
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        System.err.println("Error updating journal: " + e.getMessage());
+        e.printStackTrace();
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("error", "Internal Server Error");
         errorResponse.put("message", e.getMessage());
         errorResponse.put("timestamp", new Date());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

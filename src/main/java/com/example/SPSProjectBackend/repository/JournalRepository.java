@@ -44,4 +44,14 @@ public interface JournalRepository extends JpaRepository<Journal, JournalId> {
             @Param("adjustAmt") BigDecimal adjustAmt,
             @Param("areaCode") String areaCode,
             @Param("billCycle") Integer billCycle);
+
+    // =================== REPORT QUERY - USER'S ACCESSIBLE AREAS ===================
+    @Query("SELECT j " +
+           "FROM Journal j " +
+           "WHERE j.id.areaCd IN :areaCodes " +
+           "AND j.id.addedBlcy IN :billCycles " +
+           "ORDER BY j.id.areaCd, j.id.addedBlcy, j.id.jnlNo")
+    List<Journal> findJournalsForUserReport(
+            @Param("areaCodes") List<String> areaCodes,
+            @Param("billCycles") List<Integer> billCycles);
 }

@@ -10,9 +10,13 @@ import com.example.SPSProjectBackend.model.Journal;
 import com.example.SPSProjectBackend.model.JournalId;
 import com.example.SPSProjectBackend.model.JournalType;
 import com.example.SPSProjectBackend.model.JurnlAuth;
+import com.example.SPSProjectBackend.model.Bill_CycleLogFile;
+import com.example.SPSProjectBackend.model.Process;
 import com.example.SPSProjectBackend.repository.JournalRepository;
 import com.example.SPSProjectBackend.repository.JournalTypeRepository;
 import com.example.SPSProjectBackend.repository.JurnlAuthRepository;
+import com.example.SPSProjectBackend.repository.Bill_CycleLogRepository;
+import com.example.SPSProjectBackend.repository.ProcessRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +38,15 @@ public class JournalService {
 
     @Autowired
     private JurnlAuthRepository jurnlAuthRepository;
+
+    @Autowired
+    private BillCycleService billCycleService;
+
+    @Autowired
+    private Bill_CycleLogRepository billCycleLogRepository;
+
+    @Autowired
+    private ProcessRepository processRepository;
 
     // ===================== GET ALL JOURNALS WITH SELECTED AREA AND BILL CYCLE =====================
     @Transactional(readOnly = true)
@@ -61,6 +74,51 @@ public class JournalService {
             System.err.println("Error in getAllJournalsSummary: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Error fetching journals: " + e.getMessage(), e);
+        }
+    }
+
+    // ===================== GET JOURNALS FOR USER REPORT (Acc Assistance) =====================
+    @Transactional(readOnly = true)
+    public List<JournalDetailDTO> getJournalsForUserReport(String sessionId, String userId, 
+                                                            String areaCode, Integer billCycle) {
+        try {
+            System.out.println("Fetching journal report for user: " + userId 
+                             + ", area: " + areaCode + ", bill cycle: " + billCycle);
+            
+            // Validate that user has access to the requested area
+            var billCycleResponse = billCycleService.getBillCyclesForUser(sessionId, userId);
+            
+            if (!billCycleResponse.getSuccess()) {
+                throw new RuntimeException("Failed to verify user access: " + billCycleResponse.getMessage());
+            }
+            
+            // Check if user has access to the requested area
+            boolean hasAccess = billCycleResponse.getBillCycles().stream()
+                    .anyMatch(dto -> dto.getAreaCode().equals(areaCode) 
+                                  && dto.getActiveBillCycle().equals(billCycle));
+            
+            if (!hasAccess) {
+                System.out.println("User does not have access to area: " + areaCode);
+                return Collections.emptyList();
+            }
+            
+            System.out.println("User has access to area: " + areaCode + " with bill cycle: " + billCycle);
+            
+            // Fetch journals for the selected area and bill cycle only
+            List<Journal> journals = journalRepository.findJournalsForUserReport(
+                    Collections.singletonList(areaCode), 
+                    Collections.singletonList(billCycle));
+            
+            System.out.println("Found " + journals.size() + " journals for report");
+            
+            return journals.stream()
+                    .map(this::convertToDetailDTO)
+                    .collect(Collectors.toList());
+                    
+        } catch (Exception e) {
+            System.err.println("Error in getJournalsForUserReport: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error fetching journal report: " + e.getMessage(), e);
         }
     }
 
@@ -109,72 +167,9 @@ public class JournalService {
         }
     }
 
-    // ===================== UPDATE JOURNAL =====================
-    @Transactional
-    public JournalDetailDTO updateJournal(JournalUpdateDTO updateDTO) {
-        try {
-            System.out.println("========== JOURNAL SERVICE UPDATE ==========");
-            System.out.println("Updating journal with composite key:");
-            System.out.println("  accNbr: " + updateDTO.getAccNbr());
-            System.out.println("  areaCd: " + updateDTO.getAreaCd());
-            System.out.println("  addedBlcy: " + updateDTO.getAddedBlcy());
-            System.out.println("  jnlType: " + updateDTO.getJnlType());
-            System.out.println("  jnlNo: " + updateDTO.getJnlNo());
-            System.out.println("  New adjustAmt: " + updateDTO.getAdjustAmt());
-            
-            // Create the composite key
-            JournalId journalId = new JournalId(
-                updateDTO.getAccNbr(),
-                updateDTO.getAreaCd(),
-                updateDTO.getAddedBlcy(),
-                updateDTO.getJnlType(),
-                updateDTO.getJnlNo()
-            );
-            
-            // Find the journal by composite key
-            System.out.println("Fetching journal by composite key...");
-            Optional<Journal> journalOpt = journalRepository.findById(journalId);
-            
-            if (!journalOpt.isPresent()) {
-                System.err.println("Journal not found with composite key");
-                throw new RuntimeException("Journal not found with the specified composite key");
-            }
-            
-            Journal journal = journalOpt.get();
-            System.out.println("Journal found. Current adjust_amt: " + journal.getAdjustAmt());
-            
-            // Update the adjustment amount
-            BigDecimal oldAmount = journal.getAdjustAmt();
-            journal.setAdjustAmt(updateDTO.getAdjustAmt());
-            
-            // Update edited user ID and timestamp
-            journal.setEditedUserId(updateDTO.getEditedUserId() != null ? updateDTO.getEditedUserId() : "SYSTEM");
-            journal.setEditedDtime(LocalDateTime.now());
-            
-            System.out.println("Adjustment amount changed from " + oldAmount + " to " + updateDTO.getAdjustAmt());
-            System.out.println("Saving journal using JPA...");
-            
-            // Save using JPA - no native query needed now
-            Journal savedJournal = journalRepository.save(journal);
-            
-            System.out.println("Journal updated successfully. New adjust_amt: " + savedJournal.getAdjustAmt());
-            System.out.println("==============================================");
-            
-            return convertToDetailDTO(savedJournal);
-            
-        } catch (Exception e) {
-            System.err.println("========== ERROR IN JOURNAL SERVICE UPDATE ==========");
-            System.err.println("Error message: " + e.getMessage());
-            System.err.println("Error type: " + e.getClass().getName());
-            e.printStackTrace();
-            System.err.println("====================================================");
-            throw new RuntimeException("Error updating journal: " + e.getMessage(), e);
-        }
-    }
-
     // ===================== CREATE JOURNAL =====================
     @Transactional
-    public JournalDetailDTO createJournal(JournalCreateDTO createDTO) {
+    public JournalDetailDTO createJournal(JournalCreateDTO createDTO, String userId) {
         try {
             System.out.println("Creating new journal with data: " + createDTO);
             
@@ -225,7 +220,7 @@ public class JournalService {
             // Confirmed: null if not checked, "Y" if checked
             journal1.setConfirmed(createDTO.getIndividuallyConfirmed() != null && createDTO.getIndividuallyConfirmed() ? "Y" : null);
             
-            journal1.setUserId("ADMIN"); // Set from current user session
+            journal1.setUserId(userId); // Set from current user session
             journal1.setEnteredDtime(LocalDateTime.now());
             
             // Save first journal to database
@@ -269,7 +264,7 @@ public class JournalService {
                 journal2.setDocAttch("N".equalsIgnoreCase(createDTO.getDocAttch()) ? "0" : createDTO.getDocAttch());
                 journal2.setJnlDate(journal1.getJnlDate()); // Same date as first entry
                 journal2.setConfirmed(createDTO.getIndividuallyConfirmed() != null && createDTO.getIndividuallyConfirmed() ? "Y" : null);
-                journal2.setUserId("ADMIN");
+                journal2.setUserId(userId);
                 journal2.setEnteredDtime(LocalDateTime.now());
                 
                 // Save second journal to database
@@ -359,5 +354,225 @@ public class JournalService {
     
     private String safeString(String value) {
         return value != null ? value.trim() : "N/A";
+    }
+
+    // ===================== CONFIRM JOURNALS AND CREATE LOG ENTRY =====================
+    @Transactional
+    public Map<String, Object> confirmJournals(List<JournalDetailDTO> journals, String userId) {
+        try {
+            if (journals == null || journals.isEmpty()) {
+                throw new RuntimeException("No journals provided for confirmation");
+            }
+
+            System.out.println("========== CONFIRMING JOURNALS ==========");
+            System.out.println("Number of journals: " + journals.size());
+            System.out.println("User ID: " + userId);
+
+            // Record start time
+            LocalDateTime startTime = LocalDateTime.now();
+            
+            // Get area and bill cycle from first journal
+            String areaCode = journals.get(0).getAreaCd();
+            Integer billCycle = journals.get(0).getAddedBlcy();
+            
+            System.out.println("Area Code: " + areaCode);
+            System.out.println("Bill Cycle: " + billCycle);
+            
+            // Get pro_code from process table for "Confirm Editing of Journals"
+            Optional<Process> processOpt = processRepository.findByProDescTrimmed("Confirm Editing of Journals");
+            
+            if (!processOpt.isPresent()) {
+                throw new RuntimeException("Process 'Confirm Editing of Journals' not found in process table");
+            }
+            
+            String proCode = processOpt.get().getProCode();
+            System.out.println("Process Code: " + proCode);
+            
+            // Get the earliest entered_dtime from journals (for date_time field)
+            LocalDateTime earliestDateTime = journals.stream()
+                    .map(JournalDetailDTO::getEnteredDtime)
+                    .filter(dt -> dt != null)
+                    .min(LocalDateTime::compareTo)
+                    .orElse(LocalDateTime.now());
+            
+            System.out.println("Earliest Date Time: " + earliestDateTime);
+            
+            // Use the logged-in user's ID (who is confirming the journals)
+            System.out.println("Logged-in User ID (confirming): " + userId);
+            
+            // Count number of records
+            int noOfRecs = journals.size();
+            
+            // Record end time
+            LocalDateTime endTime = LocalDateTime.now();
+            
+            // Format times as HH:mm:ss
+            java.time.format.DateTimeFormatter timeFormatter = 
+                java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+            String startTimeStr = startTime.format(timeFormatter);
+            String endTimeStr = endTime.format(timeFormatter);
+            
+            // Calculate duration in minutes
+            long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
+            int durationMin = (int) (durationSeconds / 60);
+            
+            System.out.println("Start Time: " + startTimeStr);
+            System.out.println("End Time: " + endTimeStr);
+            System.out.println("Duration: " + durationMin + " minutes");
+            
+            // Check if a log_file entry already exists for this area_code, bill_cycle, and pro_code
+            Optional<Bill_CycleLogFile> existingLogOpt = billCycleLogRepository
+                .findByAreaCodeAndBillCycleAndProCodeTrimmed(areaCode, billCycle, proCode);
+            
+            Bill_CycleLogFile logFile;
+            if (existingLogOpt.isPresent()) {
+                // Update existing record
+                logFile = existingLogOpt.get();
+                System.out.println("Updating existing log_file entry with ID: " + logFile.getLogId());
+            } else {
+                // Create new record
+                logFile = new Bill_CycleLogFile();
+                logFile.setProCode(proCode);
+                logFile.setAreaCode(areaCode);
+                logFile.setBillCycle(billCycle);
+                System.out.println("Creating new log_file entry");
+            }
+            
+            // Set/Update fields
+            logFile.setDateTime(earliestDateTime);
+            logFile.setNoOfRecs(noOfRecs);
+            logFile.setStartTime(startTimeStr);
+            logFile.setEndTime(endTimeStr);
+            logFile.setDurationMin(durationMin);
+            logFile.setUserId(userId); // Use logged-in user's ID
+            
+            // Save log entry (create or update)
+            Bill_CycleLogFile savedLog = billCycleLogRepository.save(logFile);
+            
+            System.out.println("Log file entry saved with ID: " + savedLog.getLogId());
+            System.out.println("==========================================");
+            
+            // Calculate display log_id: count total records and subtract 1 to make it 0-based
+            // First record: count=1 -> display 0, Second: count=2 -> display 1, etc.
+            long totalRecords = billCycleLogRepository.count();
+            String formattedLogId = String.valueOf(totalRecords - 1);
+            
+            // Return result with log details
+            Map<String, Object> result = new HashMap<>();
+            result.put("confirmedCount", noOfRecs);
+            result.put("logId", formattedLogId);
+            
+            return result;
+            
+        } catch (Exception e) {
+            System.err.println("Error confirming journals: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error confirming journals: " + e.getMessage(), e);
+        }
+    }
+
+    // ===================== CHECK IF AREA AND BILL CYCLE ALREADY CONFIRMED =====================
+    @Transactional(readOnly = true)
+    public boolean isAlreadyConfirmed(String areaCode, Integer billCycle) {
+        try {
+            System.out.println("Checking if confirmed - Area: " + areaCode + ", Bill Cycle: " + billCycle);
+            
+            // Get process code for "Confirm Editing of Journals"
+            Optional<Process> processOpt = processRepository.findByProDescTrimmed("Confirm Editing of Journals");
+            
+            if (!processOpt.isPresent()) {
+                System.out.println("Process 'Confirm Editing of Journals' not found");
+                return false;
+            }
+            
+            String proCode = processOpt.get().getProCode();
+            
+            // Check if log_file entry exists for this area, bill cycle, and process code
+            Optional<Bill_CycleLogFile> existingLog = billCycleLogRepository
+                .findByAreaCodeAndBillCycleAndProCodeTrimmed(areaCode, billCycle, proCode);
+            
+            boolean isConfirmed = existingLog.isPresent();
+            System.out.println("Is confirmed: " + isConfirmed);
+            
+            return isConfirmed;
+            
+        } catch (Exception e) {
+            System.err.println("Error checking confirmation status: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // ===================== UPDATE JOURNAL RECORD =====================
+    @Transactional
+    public JournalDetailDTO updateJournal(JournalUpdateDTO updateDTO, String userId) {
+        try {
+            System.out.println("========== UPDATING JOURNAL ==========");
+            System.out.println("Account Number: " + updateDTO.getAccNbr());
+            System.out.println("Area Code: " + updateDTO.getAreaCd());
+            System.out.println("Bill Cycle: " + updateDTO.getAddedBlcy());
+            System.out.println("Journal Type: " + updateDTO.getJnlType());
+            System.out.println("Journal No: " + updateDTO.getJnlNo());
+            System.out.println("Updated by: " + userId);
+            
+            // Check if already confirmed - cannot edit after confirmation
+            if (isAlreadyConfirmed(updateDTO.getAreaCd(), updateDTO.getAddedBlcy())) {
+                throw new RuntimeException("Cannot edit journals that have already been confirmed");
+            }
+            
+            // Create composite key from original values (from DTO - these are the original values sent from frontend)
+            JournalId journalId = new JournalId(
+                updateDTO.getAccNbr(),
+                updateDTO.getAreaCd(),
+                updateDTO.getAddedBlcy(),
+                updateDTO.getJnlType(),
+                updateDTO.getJnlNo()
+            );
+            
+            // Find existing journal
+            Optional<Journal> journalOpt = journalRepository.findById(journalId);
+            
+            if (!journalOpt.isPresent()) {
+                throw new RuntimeException("Journal not found");
+            }
+            
+            Journal journal = journalOpt.get();
+            
+            // Update only non-key fields (not area_cd and added_blcy as per requirements)
+            // Key fields (acc_nbr, jnl_type, jnl_no) are already set in the ID
+            if (updateDTO.getAdjustAmt() != null) {
+                journal.setAdjustAmt(updateDTO.getAdjustAmt());
+            }
+            if (updateDTO.getAuthCode() != null) {
+                journal.setAuthCode(updateDTO.getAuthCode());
+            }
+            if (updateDTO.getJnlDate() != null) {
+                journal.setJnlDate(updateDTO.getJnlDate());
+            }
+            if (updateDTO.getUserId() != null) {
+                journal.setUserId(updateDTO.getUserId());
+            }
+            if (updateDTO.getEnteredDtime() != null) {
+                journal.setEnteredDtime(updateDTO.getEnteredDtime());
+            }
+            
+            // Set the editor information
+            journal.setEditedUserId(userId);
+            journal.setEditedDtime(LocalDateTime.now());
+            
+            // Save updated journal
+            Journal savedJournal = journalRepository.save(journal);
+            
+            System.out.println("Journal updated successfully");
+            System.out.println("======================================");
+            
+            // Convert to DTO
+            return convertToDetailDTO(savedJournal);
+            
+        } catch (Exception e) {
+            System.err.println("Error updating journal: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error updating journal: " + e.getMessage(), e);
+        }
     }
 }

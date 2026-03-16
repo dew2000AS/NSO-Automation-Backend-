@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -18,7 +19,9 @@ public class JournalUpdateDTO {
     private String adjustStat;
     private String authCode;
     private String docAttch;
+    private LocalDateTime jnlDate;
     private String confirmed;
     private String userId;
+    private LocalDateTime enteredDtime;
     private String editedUserId;
 }
