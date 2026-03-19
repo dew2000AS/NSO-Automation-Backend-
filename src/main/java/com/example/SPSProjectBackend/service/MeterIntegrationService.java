@@ -79,23 +79,19 @@ public class MeterIntegrationService {
      * Returns the latest billed reading (rdngs.rdn) per meter type for an account + sequence.
      */
     public Map<String, Integer> getLatestBilledReadings(String accNbr, Integer mtrSeq, String mtrNbr) {
+        return getLatestBilledReadings(accNbr, mtrSeq, mtrNbr, null);
+    }
+
+    /**
+     * Returns the latest billed reading (rdngs.rdn) per meter type for an account + sequence
+     * as of an optional effective date.
+     */
+    public Map<String, Integer> getLatestBilledReadings(String accNbr, Integer mtrSeq, String mtrNbr, java.util.Date asOfDate) {
         if (isBlank(accNbr) || mtrSeq == null) {
             return Collections.emptyMap();
         }
 
-        String sql = "SELECT TRIM(mtr_type) AS mtr_type, rdn " +
-                "FROM rdngs " +
-                "WHERE TRIM(acc_nbr) = TRIM(:accNbr) " +
-                "AND mtr_seq = :mtrSeq " +
-                "AND (:mtrNbr IS NULL OR TRIM(mtr_nbr) = TRIM(:mtrNbr)) " +
-                "ORDER BY rdng_date DESC, entered_dtime DESC";
-
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = entityManager.createNativeQuery(sql)
-                .setParameter("accNbr", accNbr)
-                .setParameter("mtrSeq", mtrSeq)
-                .setParameter("mtrNbr", trimOrNull(mtrNbr))
-                .getResultList();
+        List<Object[]> rows = fetchLatestBilledRows(accNbr, mtrSeq, mtrNbr, asOfDate);
 
         Map<String, Integer> latestByType = new LinkedHashMap<>();
         for (Object[] row : rows) {
@@ -107,6 +103,50 @@ public class MeterIntegrationService {
         }
 
         return latestByType;
+    }
+
+    /**
+     * Returns the latest billed rate (rdngs.rate) per meter type for an account + sequence
+     * as of an optional effective date.
+     */
+    public Map<String, BigDecimal> getLatestBilledRates(String accNbr, Integer mtrSeq, String mtrNbr, java.util.Date asOfDate) {
+        if (isBlank(accNbr) || mtrSeq == null) {
+            return Collections.emptyMap();
+        }
+
+        List<Object[]> rows = fetchLatestBilledRows(accNbr, mtrSeq, mtrNbr, asOfDate);
+
+        Map<String, BigDecimal> latestRatesByType = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            String meterType = toTrimmedStringOrNull(row[0]);
+            BigDecimal billedRate = toBigDecimal(row[2]);
+            if (meterType != null && !latestRatesByType.containsKey(meterType)) {
+                latestRatesByType.put(meterType, billedRate != null ? billedRate : BigDecimal.ZERO);
+            }
+        }
+
+        return latestRatesByType;
+    }
+
+    private List<Object[]> fetchLatestBilledRows(String accNbr, Integer mtrSeq, String mtrNbr, java.util.Date asOfDate) {
+        java.sql.Date asOfSqlDate = asOfDate != null ? new java.sql.Date(asOfDate.getTime()) : null;
+
+        String sql = "SELECT TRIM(mtr_type) AS mtr_type, rdn, rate " +
+                "FROM rdngs " +
+                "WHERE TRIM(acc_nbr) = TRIM(:accNbr) " +
+                "AND mtr_seq = :mtrSeq " +
+                "AND (:mtrNbr IS NULL OR TRIM(mtr_nbr) = TRIM(:mtrNbr)) " +
+                "AND (:asOfDate IS NULL OR rdng_date <= :asOfDate) " +
+                "ORDER BY rdng_date DESC, entered_dtime DESC";
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = entityManager.createNativeQuery(sql)
+                .setParameter("accNbr", accNbr)
+                .setParameter("mtrSeq", mtrSeq)
+                .setParameter("mtrNbr", trimOrNull(mtrNbr))
+                .setParameter("asOfDate", asOfSqlDate)
+                .getResultList();
+        return rows;
     }
 
     @Transactional

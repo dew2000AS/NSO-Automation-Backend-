@@ -8,10 +8,13 @@ import com.example.SPSProjectBackend.service.MeterIntegrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.Timestamp;
+import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -45,14 +48,18 @@ public class MeterIntegrationController {
     public ResponseEntity<?> getPreviousBilledReadings(
             @PathVariable String accNbr,
             @RequestParam Integer mtrSeq,
-            @RequestParam(required = false) String mtrNbr) {
+            @RequestParam(required = false) String mtrNbr,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date effctDate) {
         try {
-            Map<String, Integer> readings = meterIntegrationService.getLatestBilledReadings(accNbr, mtrSeq, mtrNbr);
+            Map<String, Integer> readings = meterIntegrationService.getLatestBilledReadings(accNbr, mtrSeq, mtrNbr, effctDate);
+            Map<String, BigDecimal> rates = meterIntegrationService.getLatestBilledRates(accNbr, mtrSeq, mtrNbr, effctDate);
             Map<String, Object> response = new HashMap<>();
             response.put("acc_nbr", accNbr);
             response.put("mtr_seq", mtrSeq);
             response.put("mtr_nbr", mtrNbr);
+            response.put("effct_date", effctDate);
             response.put("readings", readings);
+            response.put("rates", rates);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             Map<String, String> error = new HashMap<>();
