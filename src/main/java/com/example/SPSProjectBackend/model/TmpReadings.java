@@ -13,7 +13,7 @@ import java.util.Date;
     @Index(name = "idx_acc_nbr_mtr_type_rdng_date", columnList = "acc_nbr, mtr_type, rdng_date"),
     @Index(name = "idx_acc_nbr_area_cd", columnList = "acc_nbr, area_cd"),
     @Index(name = "idx_mtr_nbr", columnList = "mtr_nbr")
-})
+}, schema = "dbadmin")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

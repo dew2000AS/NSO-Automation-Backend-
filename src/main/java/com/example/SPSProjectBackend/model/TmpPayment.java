@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "tmp_payment")
+@Table(name = "tmp_payment", schema = "dbadmin")
 @IdClass(TmpPaymentId.class)
 public class TmpPayment {
     

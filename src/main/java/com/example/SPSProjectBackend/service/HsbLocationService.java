@@ -27,7 +27,10 @@ public class HsbLocationService {
     // Get all regions in ascending order
     public List<String> getAllRegions() {
         try {
-            return areaRepository.findAllRegions();
+//            return areaRepository.findAllRegions();
+            List<String> regions = areaRepository.findAllRegions();
+            System.out.println(regions);
+            return regions;
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve regions: " + e.getMessage(), e);
         }
