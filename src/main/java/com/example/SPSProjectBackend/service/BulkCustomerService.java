@@ -23,7 +23,7 @@ public class BulkCustomerService {
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getAllCustomers() {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findAll();
+            List<BulkCustomer> customers = bulkCustomerRepository.findAllNcreCustomersTrimmed();
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());

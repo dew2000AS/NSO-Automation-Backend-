@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.Date;
 
+import org.checkerframework.checker.units.qual.C;
+
 @Entity
 @Table(name = "customer", indexes = {
         @Index(name = "idx_acc_nbr", columnList = "acc_nbr"),
@@ -211,6 +213,12 @@ public class BulkCustomer {
     @Column(name = "cat_code", length = 4)
     private String catCode;
 
+    @Column(name = "ncre", length = 1)
+    private String ncre;
+
+    @Column(name = "ncre_type", length = 1)
+    private String ncre_type;
+
     // Add trimming setters for all string fields
     public void setAccNbr(String accNbr) {
         this.accNbr = accNbr != null ? accNbr.trim() : null;
@@ -378,6 +386,14 @@ public class BulkCustomer {
 
     public void setCatCode(String catCode) {
         this.catCode = catCode != null ? catCode.trim() : null;
+    }
+
+    public void setNcre(String ncre) {
+        this.ncre = ncre != null ? ncre.trim() : null;
+    }
+
+    public void setNcre_type(String ncre_type) {
+        this.ncre_type = ncre_type != null ? ncre_type.trim() : null;
     }
 
     // Override getters to ensure trimmed values are returned
