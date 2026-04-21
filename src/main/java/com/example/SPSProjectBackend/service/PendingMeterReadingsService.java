@@ -78,9 +78,7 @@ public class PendingMeterReadingsService {
     /**
      * Get single pending meter reading for a customer in an area
      */
-    public SinglePendingReadingResponse getPendingMeterReadingForCustomer(String sessionId, String userId, 
-                                                                         String accountNumber, String areaCode, 
-                                                                         String billCycle) {
+    public SinglePendingReadingResponse getPendingMeterReadingForCustomer(String sessionId, String userId, String accountNumber, String areaCode, String billCycle) {
         try {
             // Validate session and access
             validateSessionAndAccess(sessionId, userId, areaCode);

@@ -506,6 +506,7 @@ public class BulkCustomerService {
         dto.setCustType(customer.getCustType());
         dto.setNetType(customer.getNetType());
         dto.setCatCode(customer.getCatCode());
+        dto.setNcreType(customer.getNcre_type());
         return dto;
     }
 
