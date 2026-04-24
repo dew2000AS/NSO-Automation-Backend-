@@ -15,6 +15,9 @@ public class ReadingStatusDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CustomerReadingStatusDTO {
+        @JsonProperty("ncre_type")
+        private String ncreType;
+
         @JsonProperty("acc_nbr")
         private String accNbr;
         

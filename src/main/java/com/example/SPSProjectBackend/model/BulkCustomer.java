@@ -216,8 +216,23 @@ public class BulkCustomer {
     @Column(name = "ncre", length = 1)
     private String ncre;
 
+
     @Column(name = "ncre_type", length = 1)
     private String ncre_type;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
 
     // Add trimming setters for all string fields
     public void setAccNbr(String accNbr) {
