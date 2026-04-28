@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import com.example.SPSProjectBackend.dto.BulkCustomerLocationUpdateRequest;
 
 @Service
 @Transactional
@@ -23,7 +24,7 @@ public class BulkCustomerService {
     @Transactional(readOnly = true)
     public List<BulkCustomerDTO> getAllCustomers() {
         try {
-            List<BulkCustomer> customers = bulkCustomerRepository.findAll();
+            List<BulkCustomer> customers = bulkCustomerRepository.findAllNcreCustomersTrimmed();
             return customers.stream()
                     .map(this::convertToDTO)
                     .collect(Collectors.toList());
@@ -213,6 +214,25 @@ public class BulkCustomerService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to create customer: " + e.getMessage(), e);
         }
+    }
+
+    // Update NCRE customer GPSlocation
+    @Transactional
+    public void updateCustomerLocation(BulkCustomerLocationUpdateRequest request) {
+        if (request == null || request.getAcc_nbr() == null || request.getLatitude() == null || request.getLongitude() == null) {
+            throw new IllegalArgumentException("Account number, latitude, and longitude are required");
+        }
+        String accNbr = request.getAcc_nbr().trim();
+        Optional<BulkCustomer> customerOpt = bulkCustomerRepository.findByAccNbrTrimmed(accNbr);
+        if (!customerOpt.isPresent()) {
+            throw new IllegalArgumentException("Customer with account number " + accNbr + " not found");
+        }
+        BulkCustomer customer = customerOpt.get();
+        customer.setLatitude(request.getLatitude());
+        customer.setLongitude(request.getLongitude());
+        customer.setEditedDtime(new java.util.Date());
+        bulkCustomerRepository.save(customer);
+        bulkCustomerRepository.flush();
     }
 
     // Update existing customer - USING TRIMMED VERSION FOR LOOKUP
@@ -506,6 +526,7 @@ public class BulkCustomerService {
         dto.setCustType(customer.getCustType());
         dto.setNetType(customer.getNetType());
         dto.setCatCode(customer.getCatCode());
+        dto.setNcreType(customer.getNcre_type());
         return dto;
     }
 

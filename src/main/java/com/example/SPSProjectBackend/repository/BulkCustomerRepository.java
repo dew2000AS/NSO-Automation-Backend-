@@ -20,8 +20,8 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
     Optional<BulkCustomer> findByAccNbrTrimmed(@Param("accNbr") String accNbr);
     
     // Find customers by area code with trimming
-    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.areaCd) = TRIM(:areaCd) ORDER BY c.accNbr")
-    List<BulkCustomer> findByAreaCdTrimmed(@Param("areaCd") String areaCd);
+       @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.areaCd) = TRIM(:areaCd) AND TRIM(c.ncre) = '1' AND c.ncre_type IS NOT NULL ORDER BY c.accNbr")
+       List<BulkCustomer> findByAreaCdTrimmed(@Param("areaCd") String areaCd);
     
     // Check if customer exists by account number with trimming
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM BulkCustomer c WHERE TRIM(c.accNbr) = TRIM(:accNbr)")
@@ -214,4 +214,8 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
     // method to the existing repository
     @Query("SELECT c FROM BulkCustomer c WHERE c.accNbr IN :accNbrs AND c.areaCd = :areaCd ORDER BY c.accNbr")
     List<BulkCustomer> findByAccNbrInAndAreaCd(@Param("accNbrs") List<String> accNbrs, @Param("areaCd") String areaCd);
+
+    // Find all customers where TRIM(ncre) = '1' and ncre_type is not null (with trimming)
+    @Query("SELECT c FROM BulkCustomer c WHERE TRIM(c.ncre) = '1' AND c.ncre_type IS NOT NULL")
+    List<BulkCustomer> findAllNcreCustomersTrimmed();
 }

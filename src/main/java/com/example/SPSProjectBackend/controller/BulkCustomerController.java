@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import com.example.SPSProjectBackend.dto.BulkCustomerLocationUpdateRequest;
+import jakarta.validation.Valid;
 
 import java.util.HashMap;
 import java.util.List;
@@ -96,6 +98,30 @@ public class BulkCustomerController {
         } catch (Exception e) {
             Map<String, String> error = new HashMap<>();
             error.put("error", "Failed to retrieve customers by area code");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    // Update customer location (latitude & longitude)
+    @PostMapping("/updateLocation")
+    public ResponseEntity<?> updateCustomerLocation(@Valid @RequestBody BulkCustomerLocationUpdateRequest request) {
+        try {
+            bulkCustomerService.updateCustomerLocation(request);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Customer location updated successfully");
+            response.put("acc_nbr", request.getAcc_nbr());
+            response.put("latitude", request.getLatitude());
+            response.put("longitude", request.getLongitude());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Invalid input");
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (RuntimeException e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Failed to update customer location");
             error.put("message", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }

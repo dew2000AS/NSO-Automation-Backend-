@@ -377,7 +377,8 @@ public class ReadingStatusService {
         
         dto.setAccNbr(customer.getAccNbr());
         dto.setHasReading(hasReading);
-        
+        dto.setNcreType(customer.getNcre_type());
+
         if (includeDetails) {
             dto.setName(customer.getName());
             dto.setAddressL1(customer.getAddressL1());
@@ -387,12 +388,12 @@ public class ReadingStatusService {
             dto.setMobileNo(customer.getMobileNo());
             dto.setTelNbr(customer.getTelNbr());
         }
-        
+
         if (!includeReadingDetails) {
             dto.setReadings(new ArrayList<>());
             dto.setReadingCount(0);
         }
-        
+
         return dto;
     }
 

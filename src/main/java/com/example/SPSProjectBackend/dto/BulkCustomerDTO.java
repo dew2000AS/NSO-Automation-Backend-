@@ -13,6 +13,8 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BulkCustomerDTO {
+    @JsonProperty("ncre_type")
+    private String ncreType;
     
     @JsonProperty("acc_nbr")
     private String accNbr;

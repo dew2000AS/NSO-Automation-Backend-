@@ -78,9 +78,7 @@ public class PendingMeterReadingsService {
     /**
      * Get single pending meter reading for a customer in an area
      */
-    public SinglePendingReadingResponse getPendingMeterReadingForCustomer(String sessionId, String userId, 
-                                                                         String accountNumber, String areaCode, 
-                                                                         String billCycle) {
+    public SinglePendingReadingResponse getPendingMeterReadingForCustomer(String sessionId, String userId, String accountNumber, String areaCode, String billCycle) {
         try {
             // Validate session and access
             validateSessionAndAccess(sessionId, userId, areaCode);
@@ -196,8 +194,8 @@ public class PendingMeterReadingsService {
      */
     private void setMeterSequenceAndBalance(BulkCustomer customer, String areaCode, String billCycle, PendingMeterReadingDetailsDTO dto) {
         try {
-            // Get meter sequence from mtr_detail (use first meter's sequence)
-            List<MtrDetail> meterDetails = mtrDetailRepository.findByInstId(customer.getInstId());
+            // Get meter sequence from mtr_detail (use first meter's sequence) - FIXED VERSION with NULL handling
+            List<MtrDetail> meterDetails = mtrDetailRepository.findByInstIdFixed(customer.getInstId());
             if (!meterDetails.isEmpty()) {
                 Integer meterSeq = meterDetails.get(0).getMtrSeq();
                 dto.setMeterSequence(meterSeq != null ? meterSeq : 0);
@@ -255,8 +253,8 @@ public class PendingMeterReadingsService {
         List<MeterTypePendingDTO> meterTypes = new ArrayList<>();
         
         try {
-            // Get all meter types for this customer from mtr_detail
-            List<MtrDetail> meterDetails = mtrDetailRepository.findByInstId(customer.getInstId());
+            // Get all meter types for this customer from mtr_detail - FIXED VERSION with NULL handling
+            List<MtrDetail> meterDetails = mtrDetailRepository.findByInstIdFixed(customer.getInstId());
             
             if (meterDetails.isEmpty()) {
                 System.out.println("No meter details found for installation ID: " + customer.getInstId());
