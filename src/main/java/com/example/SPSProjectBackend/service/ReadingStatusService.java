@@ -8,6 +8,7 @@ import com.example.SPSProjectBackend.dto.HsbAreaDTO;
 import com.example.SPSProjectBackend.model.BulkCustomer;
 import com.example.SPSProjectBackend.model.TmpReadings;
 import com.example.SPSProjectBackend.repository.BulkCustomerRepository;
+import com.example.SPSProjectBackend.repository.NcreDeveloperRepository;
 import com.example.SPSProjectBackend.repository.TmpReadingsRepository;
 import com.example.SPSProjectBackend.repository.BillCycleConfigRepository;
 import com.example.SPSProjectBackend.util.SessionUtils;
@@ -26,6 +27,9 @@ public class ReadingStatusService {
 
     @Autowired
     private BulkCustomerRepository bulkCustomerRepository;
+
+    @Autowired
+    private NcreDeveloperRepository ncreDeveloperRepository;
 
     @Autowired
     private TmpReadingsRepository tmpReadingsRepository;
@@ -374,10 +378,17 @@ public class ReadingStatusService {
     private ReadingStatusDTO.CustomerReadingStatusDTO convertToCustomerStatusDTO(BulkCustomer customer, 
             boolean hasReading, boolean includeDetails, boolean includeReadingDetails) {
         ReadingStatusDTO.CustomerReadingStatusDTO dto = new ReadingStatusDTO.CustomerReadingStatusDTO();
-        
+
         dto.setAccNbr(customer.getAccNbr());
         dto.setHasReading(hasReading);
         dto.setNcreType(customer.getNcre_type());
+
+        if (customer.getAccNbr() != null) {
+            ncreDeveloperRepository.findByAccNbr(customer.getAccNbr())
+                    .ifPresent(developer -> dto.setFacilityName(developer.getFacilityName()));
+        }
+
+        dto.setFolioNo(customer.getFolioNo());
 
         if (includeDetails) {
             dto.setName(customer.getName());

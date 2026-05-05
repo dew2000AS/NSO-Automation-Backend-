@@ -33,6 +33,9 @@ public class ReadingStatusDTO {
         @JsonProperty("bill_cycle")
         private Integer billCycle;
         
+        @JsonProperty("folio_no")
+        private Short folioNo;
+        
         @JsonProperty("tariff")
         private String tariff;
         
@@ -41,6 +44,9 @@ public class ReadingStatusDTO {
         
         @JsonProperty("tel_nbr")
         private String telNbr;
+
+        @JsonProperty("facility_name")
+        private String facilityName;
         
         @JsonProperty("has_reading")
         private Boolean hasReading;

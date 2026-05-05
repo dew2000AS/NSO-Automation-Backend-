@@ -37,6 +37,9 @@ public class BulkCustomer {
     @Column(name = "bill_cycle")
     private Integer billCycle;
 
+    @Column(name = "folio_no")
+    private Short folioNo;
+
     @Column(name = "cus_cat", length = 1)
     private String cusCat;
 
