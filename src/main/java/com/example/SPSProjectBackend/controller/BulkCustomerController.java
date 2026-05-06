@@ -7,12 +7,15 @@ import com.example.SPSProjectBackend.service.HsbLocationService;
 import com.example.SPSProjectBackend.util.SessionUtils;
 import com.example.SPSProjectBackend.dto.SecInfoLoginDTO;
 import com.example.SPSProjectBackend.dto.HsbAreaDTO;
+import com.example.SPSProjectBackend.dto.MapDataDTO;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import com.example.SPSProjectBackend.dto.BulkCustomerLocationUpdateRequest;
+
 import jakarta.validation.Valid;
 
 import java.util.HashMap;
@@ -22,7 +25,13 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/bulk-customers")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(
+    origins = "http://localhost:3000", 
+    allowCredentials = "true",
+    allowedHeaders = "*",
+    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
+    maxAge = 3600
+)
 public class BulkCustomerController {
 
     @Autowired
@@ -630,4 +639,31 @@ public class BulkCustomerController {
                 return false;
         }
     }
+
+
+    // ================= MAP DATA (FAST LOADING) =================
+@GetMapping("/map-data")
+public ResponseEntity<?> getMapData(
+        @RequestParam(required = false) String session_id,
+        @RequestParam(required = false) String user_id) {
+
+    try {
+        // Optional: validate session (same pattern you use elsewhere)
+        validateSessionAndAccess(session_id, user_id, null, null, null);
+
+        List<MapDataDTO> mapData = bulkCustomerService.getMapData();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("total_locations", mapData.size());
+        response.put("data", mapData);
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception e) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Failed to load map data");
+        error.put("message", e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+}
 }

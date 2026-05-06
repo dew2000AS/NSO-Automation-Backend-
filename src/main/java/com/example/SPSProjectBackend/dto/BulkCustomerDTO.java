@@ -203,4 +203,11 @@ public class BulkCustomerDTO {
     
     @JsonProperty("cat_code")
     private String catCode;
+
+    // ADD THESE TWO NEW FIELDS ↓
+    @JsonProperty("latitude")
+    private Double latitude;
+    
+    @JsonProperty("longitude")
+    private Double longitude;
 }
