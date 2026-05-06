@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import com.example.SPSProjectBackend.dto.BulkCustomerLocationUpdateRequest;
+import com.example.SPSProjectBackend.dto.MapDataDTO;
 
 @Service
 @Transactional
@@ -216,25 +217,29 @@ public class BulkCustomerService {
         }
     }
 
-    // Update NCRE customer GPSlocation
+    // Update NCRE customer GPS location - ONLY update latitude and longitude
     @Transactional
     public void updateCustomerLocation(BulkCustomerLocationUpdateRequest request) {
         if (request == null || request.getAcc_nbr() == null || request.getLatitude() == null || request.getLongitude() == null) {
             throw new IllegalArgumentException("Account number, latitude, and longitude are required");
         }
+        
         String accNbr = request.getAcc_nbr().trim();
         Optional<BulkCustomer> customerOpt = bulkCustomerRepository.findByAccNbrTrimmed(accNbr);
+        
         if (!customerOpt.isPresent()) {
             throw new IllegalArgumentException("Customer with account number " + accNbr + " not found");
         }
+        
         BulkCustomer customer = customerOpt.get();
         customer.setLatitude(request.getLatitude());
         customer.setLongitude(request.getLongitude());
         customer.setEditedDtime(new java.util.Date());
+        
+        // Save and flush
         bulkCustomerRepository.save(customer);
         bulkCustomerRepository.flush();
     }
-
     // Update existing customer - USING TRIMMED VERSION FOR LOOKUP
     @Transactional
     public BulkCustomerDTO updateCustomer(String accNbr, BulkCustomerDTO customerDTO) {
@@ -527,6 +532,8 @@ public class BulkCustomerService {
         dto.setNetType(customer.getNetType());
         dto.setCatCode(customer.getCatCode());
         dto.setNcreType(customer.getNcre_type());
+        dto.setLatitude(customer.getLatitude()); // add by R
+        dto.setLongitude(customer.getLongitude()); // add by R
         return dto;
     }
 
@@ -594,5 +601,15 @@ public class BulkCustomerService {
         customer.setNetType(dto.getNetType());
         customer.setCatCode(dto.getCatCode());
         return customer;
+    }
+
+    // ================= MAP DATA (FAST API) =================
+    @Transactional(readOnly = true)
+    public List<MapDataDTO> getMapData() {
+        try {
+            return bulkCustomerRepository.findMapData();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load map data: " + e.getMessage(), e);
+        }
     }
 }
