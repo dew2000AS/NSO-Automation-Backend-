@@ -158,7 +158,7 @@ public class NcreDeveloper {
     @Column(name = "voltage_level_kv", precision = 10, scale = 2)
     private BigDecimal voltageLevelKv;
 
-    @Column(name = "address_line1", length = 200, nullable = false)
+    @Column(name = "address_line1", length = 200, nullable = true)
     private String addressLine1;
 
     @Column(name = "address_line2", length = 200)
