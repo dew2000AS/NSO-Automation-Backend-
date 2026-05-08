@@ -2,7 +2,9 @@ package com.example.SPSProjectBackend.service;
 
 import com.example.SPSProjectBackend.dto.BulkCustomerDTO;
 import com.example.SPSProjectBackend.model.BulkCustomer;
+import com.example.SPSProjectBackend.model.NcreDeveloper;
 import com.example.SPSProjectBackend.repository.BulkCustomerRepository;
+import com.example.SPSProjectBackend.repository.NcreDeveloperRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,9 @@ public class BulkCustomerService {
 
     @Autowired
     private BulkCustomerRepository bulkCustomerRepository;
+
+    @Autowired
+    private NcreDeveloperRepository ncreDeveloperRepository;
 
     // Get all customers
     @Transactional(readOnly = true)
@@ -413,6 +418,7 @@ public class BulkCustomerService {
         if (dto.getJobNbr() != null) customer.setJobNbr(dto.getJobNbr());
         if (dto.getAreaCd() != null) customer.setAreaCd(dto.getAreaCd());
         if (dto.getBillCycle() != null) customer.setBillCycle(dto.getBillCycle());
+        if (dto.getFolioNo() != null) customer.setFolioNo(dto.getFolioNo());
         if (dto.getCusCat() != null) customer.setCusCat(dto.getCusCat());
         if (dto.getRedCode() != null) customer.setRedCode(dto.getRedCode());
         if (dto.getDlyPack() != null) customer.setDlyPack(dto.getDlyPack());
@@ -475,6 +481,14 @@ public class BulkCustomerService {
         dto.setJobNbr(customer.getJobNbr());
         dto.setAreaCd(customer.getAreaCd());
         dto.setBillCycle(customer.getBillCycle());
+        dto.setFolioNo(customer.getFolioNo());
+        
+        // Fetch facility_name from ncre_developers table
+        Optional<NcreDeveloper> ncreDeveloper = ncreDeveloperRepository.findByAccNbr(customer.getAccNbr());
+        if (ncreDeveloper.isPresent()) {
+            dto.setFacilityName(ncreDeveloper.get().getFacilityName());
+        }
+        
         dto.setCusCat(customer.getCusCat());
         dto.setRedCode(customer.getRedCode());
         dto.setDlyPack(customer.getDlyPack());
@@ -544,6 +558,7 @@ public class BulkCustomerService {
         customer.setJobNbr(dto.getJobNbr());
         customer.setAreaCd(dto.getAreaCd());
         customer.setBillCycle(dto.getBillCycle());
+        customer.setFolioNo(dto.getFolioNo());
         customer.setCusCat(dto.getCusCat());
         customer.setRedCode(dto.getRedCode());
         customer.setDlyPack(dto.getDlyPack());

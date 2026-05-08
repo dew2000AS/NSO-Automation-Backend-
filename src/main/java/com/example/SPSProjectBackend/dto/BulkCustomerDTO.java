@@ -27,6 +27,12 @@ public class BulkCustomerDTO {
     
     @JsonProperty("bill_cycle")
     private Integer billCycle;
+
+    @JsonProperty("folio_no")
+    private Short folioNo;
+
+    @JsonProperty("facility_name")
+    private String facilityName;
     
     @JsonProperty("cus_cat")
     private String cusCat;
