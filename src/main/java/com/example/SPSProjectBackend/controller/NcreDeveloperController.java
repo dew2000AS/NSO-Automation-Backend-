@@ -8,9 +8,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
@@ -49,4 +53,41 @@ public class NcreDeveloperController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
         }
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchDeveloper(@RequestParam String field, @RequestParam String value) {
+        try {
+            NcreDeveloper developer = ncreDeveloperService.findDeveloperByField(field, value);
+            if (developer == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Developer not found"));
+            }
+            return ResponseEntity.ok(developer);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Search failed: " + e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{accNbr}")
+    public ResponseEntity<?> updateDeveloper(@PathVariable String accNbr, @Valid @RequestBody NcreDeveloperDTO dto, BindingResult br) {
+        if (br.hasErrors()) {
+            Map<String, String> errors = br.getFieldErrors().stream()
+                    .collect(Collectors.toMap(fe -> fe.getField(), fe -> fe.getDefaultMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+        }
+
+        try {
+            NcreDeveloper updated = ncreDeveloperService.updateDeveloper(accNbr, dto);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("success", true);
+            resp.put("acc_nbr", updated.getAccNbr());
+            resp.put("message", "Developer updated successfully");
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Failed to update developer: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(err);
+        }
+    }
 }
+

@@ -84,4 +84,36 @@ public class NcreDeveloperService {
     private Date toDate(LocalDate localDate) {
         return localDate == null ? null : Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
+
+    public NcreDeveloper findDeveloperByField(String field, String value) {
+        switch (field) {
+            case "acc_nbr":
+                return ncreDeveloperRepository.findByAccNbr(value).orElse(null);
+            case "project_name":
+                return ncreDeveloperRepository.findByFacilityName(value).orElse(null); // Add to repository
+            case "file_no":
+                return ncreDeveloperRepository.findByFileNo(Short.valueOf(value)).orElse(null); // Add to repository
+            case "folio_no":
+                return ncreDeveloperRepository.findByFolioNo(Short.valueOf(value)).orElse(null); // Add to repository
+            default:
+                throw new IllegalArgumentException("Invalid search field");
+        }
+    }
+
+    @Transactional
+    public NcreDeveloper updateDeveloper(String accNbr, NcreDeveloperDTO dto) {
+        NcreDeveloper existing = ncreDeveloperRepository.findByAccNbr(accNbr)
+                .orElseThrow(() -> new RuntimeException("Developer not found"));
+
+        // Update fields from DTO (similar to saveDeveloper, but update existing entity)
+        existing.setFolioNo(dto.getFolioNumber());
+        // ... (copy all field mappings from saveDeveloper, but for updating)
+        existing.setDeveloperName(dto.getDeveloperName());
+        // Add all other fields as in saveDeveloper
+
+        return ncreDeveloperRepository.save(existing);
+    }
+
+    
 }
+
