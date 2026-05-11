@@ -35,6 +35,11 @@ public class NcreDeveloperDTO {
     @Size(max = 50)
     private String phone;
 
+    @JsonProperty("accountNumber")
+    @NotBlank(message = "accountNumber is required")
+    @Size(max = 10)
+    private String accountNumber;
+
     @JsonProperty("folioNumber")
     private Short folioNumber;
 
