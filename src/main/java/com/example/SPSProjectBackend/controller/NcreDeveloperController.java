@@ -46,6 +46,16 @@ public class NcreDeveloperController {
             resp.put("acc_nbr", saved.getAccNbr());
             resp.put("message", "Developer saved successfully");
             return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        } catch (com.example.SPSProjectBackend.exception.DeveloperAlreadyExistsException dae) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Developer with accountNumber already exists: " + dae.getAccNbr());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(err);
+        } catch (IllegalArgumentException iae) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", iae.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(err);
         } catch (Exception e) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
