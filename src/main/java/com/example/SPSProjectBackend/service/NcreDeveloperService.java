@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
+import com.example.SPSProjectBackend.exception.DeveloperAlreadyExistsException;
 
 @Service
 public class NcreDeveloperService {
@@ -21,8 +22,15 @@ public class NcreDeveloperService {
     public NcreDeveloper saveDeveloper(NcreDeveloperDTO dto) {
         NcreDeveloper entity = new NcreDeveloper();
 
-        // acc_nbr left null as requested
-        entity.setAccNbr("2970104156");
+        // set acc_nbr from incoming payload (accountNumber)
+        String accNbr = dto.getAccountNumber() != null ? dto.getAccountNumber().trim() : null;
+        if (accNbr == null || accNbr.isEmpty()) {
+            throw new IllegalArgumentException("accountNumber is required");
+        }
+        if (ncreDeveloperRepository.existsById(accNbr)) {
+            throw new DeveloperAlreadyExistsException(accNbr);
+        }
+        entity.setAccNbr(accNbr);
 
         entity.setFolioNo(dto.getFolioNumber());
         entity.setFileRefNo(dto.getFileReferenceNo());
