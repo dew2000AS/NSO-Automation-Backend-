@@ -92,4 +92,85 @@ public class NcreDeveloperService {
     private Date toDate(LocalDate localDate) {
         return localDate == null ? null : Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
     }
+
+    public NcreDeveloper findDeveloperByField(String field, String value) {
+        switch (field) {
+            case "acc_nbr":
+                return ncreDeveloperRepository.findByAccNbr(value).orElse(null);
+            case "project_name":
+                return ncreDeveloperRepository.findByFacilityName(value).orElse(null); // Add to repository
+            case "file_no":
+                return ncreDeveloperRepository.findByFileNo(Short.valueOf(value)).orElse(null); // Add to repository
+            case "folio_no":
+                return ncreDeveloperRepository.findByFolioNo(Short.valueOf(value)).orElse(null); // Add to repository
+            default:
+                throw new IllegalArgumentException("Invalid search field");
+        }
+    }
+
+    @Transactional
+    public NcreDeveloper updateDeveloper(String accNbr, NcreDeveloperDTO dto) {
+        NcreDeveloper existing = ncreDeveloperRepository.findByAccNbr(accNbr)
+                .orElseThrow(() -> new RuntimeException("Developer not found"));
+
+        // Update fields from DTO (similar to saveDeveloper, but update existing entity)
+        existing.setFolioNo(dto.getFolioNumber());
+        existing.setFileRefNo(dto.getFileReferenceNo());
+        existing.setSrNoUptoDate(dto.getSrNoUptoDate());
+        existing.setTariffType(dto.getTariffType());
+        existing.setFileNo(dto.getFileNo());
+        existing.setProvince(dto.getProvince());
+        existing.setDeveloperName(dto.getDeveloperName());
+        existing.setFacilityName(dto.getProjectName());
+        existing.setCommissionedCapacityMw(dto.getCommissionedCapacityMw());
+        existing.setLoiIssued(dto.getLoiIssued());
+        existing.setSppaSigned(toDate(dto.getSppaSignedDate()));
+        existing.setGridConnectionDate(toDate(dto.getGridConnectionDate()));
+        existing.setReferenceCode(dto.getReferenceCode());
+        existing.setRegion(dto.getRegion());
+        existing.setSrNo(dto.getSrNo());
+        existing.setArea(dto.getArea());
+        existing.setType(dto.getNcreType());
+        existing.setGridSubstation(dto.getGridSubstation());
+        existing.setInitialTariff(dto.getInitialTariff());
+        existing.setExpirationDate(toDate(dto.getExpirationDate()));
+        existing.setExpirationExtensionDate(toDate(dto.getExpirationExtensionDate()));
+        existing.setSppaCapacityMw(dto.getSppaSignedCapacityMw());
+        existing.setFeederNo(dto.getFeederNo());
+        existing.setCommissionedYear(dto.getCommissionedYear());
+        existing.setAcExpirationWithExtension(toDate(dto.getAcExpirationWithExtension()));
+        existing.setEx(toDate(dto.getExDate()));
+        existing.setAc(toDate(dto.getAcDate()));
+        existing.setFlat(toDate(dto.getFlatDate()));
+        existing.setTtt(toDate(dto.getTttDate()));
+        existing.setFirstTier(toDate(dto.getFirstTierDate()));
+        existing.setSecondTier(toDate(dto.getSecondTierDate()));
+        existing.setThirdTier(toDate(dto.getThirdTierDate()));
+        existing.setNewSppaSigned(dto.getNewSppaSigned());
+        existing.setValidityStart(toDate(dto.getValidityStart()));
+        existing.setValidityExpiry(toDate(dto.getValidityExpiry()));
+        existing.setInitialTariffRevised(dto.getInitialTariffRevised());
+        existing.setRecommissionedOn(toDate(dto.getRecommissionedOn()));
+        existing.setEpExpired(toDate(dto.getEpExpired()));
+        existing.setGlExpired(toDate(dto.getGlExpired()));
+        existing.setProjectStatus(dto.getProjectStatus());
+        existing.setVoltageLevelKv(dto.getVoltageLevelKv());
+        existing.setAddressLine1(dto.getAddressLine1());
+        existing.setAddressLine2(dto.getAddressLine2());
+        existing.setAddressLine3(dto.getAddressLine3());
+        existing.setContactPerson(dto.getContactPerson());
+        existing.setTelephone(dto.getPhone());
+        existing.setEmail(dto.getEmail());
+        existing.setCompanyGroup(dto.getCompanyGroup());
+        existing.setTenderedOrNot(dto.getTenderOrNot());
+        existing.setReductions(dto.getReductions());
+        existing.setAgreementType(dto.getAgreementType());
+        existing.setLongitude(dto.getLongitude());
+        existing.setLatitude(dto.getLatitude());
+
+        return ncreDeveloperRepository.save(existing);
+    }
+
+    
 }
+

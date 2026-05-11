@@ -9,4 +9,7 @@ import java.util.Optional;
 @Repository
 public interface NcreDeveloperRepository extends JpaRepository<NcreDeveloper, String> {
     Optional<NcreDeveloper> findByAccNbr(String accNbr);
+    Optional<NcreDeveloper> findByFacilityName(String facilityName);
+    Optional<NcreDeveloper> findByFileNo(Short fileNo);
+    Optional<NcreDeveloper> findByFolioNo(Short folioNo);
 }
