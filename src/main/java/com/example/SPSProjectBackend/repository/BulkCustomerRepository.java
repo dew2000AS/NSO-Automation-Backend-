@@ -238,8 +238,15 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
               "c.name AS name, " +
               "c.latitude AS latitude, " +
               "c.longitude AS longitude, " +
-              "c.ncre_type AS ncreCategory " +
+              "c.ncre_type AS ncreCategory, " +
+              "nd.facilityName AS facilityName, " +
+              "nd.developerName AS developerName, " +
+              "nd.province AS area, " +
+              "nd.addressLine1 AS addressLine1, " +
+              "nd.addressLine2 AS addressLine2, " +
+              "nd.addressLine3 AS addressLine3 " +
               "FROM BulkCustomer c " +
+              "LEFT JOIN NcreDeveloper nd ON TRIM(nd.accNbr) = TRIM(c.accNbr) " +
               "WHERE c.latitude IS NOT NULL AND c.longitude IS NOT NULL")
        List<MapDataDTO> findMapData();
 
