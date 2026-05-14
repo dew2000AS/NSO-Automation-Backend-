@@ -233,6 +233,7 @@ public interface BulkCustomerRepository extends JpaRepository<BulkCustomer, Stri
 
        @Query("SELECT " +
               "c.accNbr AS accNbr, " +
+              "c.folioNo AS folioNo, " + 
               "c.areaCd AS areaCd, " +
               "c.city AS city, " +
               "c.name AS name, " +
