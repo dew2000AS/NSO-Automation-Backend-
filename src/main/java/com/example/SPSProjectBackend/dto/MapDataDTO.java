@@ -13,5 +13,6 @@ public interface MapDataDTO {
     String getArea();           // from NcreDeveloper (province or area)
     String getAddressLine1();   // from NcreDeveloper
     String getAddressLine2();   // from NcreDeveloper
-    String getAddressLine3();   // from NcreDeveloper
+    String getAddressLine3();   
+    Short getFolioNo();         // from NcreDeveloper
 }
